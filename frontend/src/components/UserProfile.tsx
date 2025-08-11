@@ -189,7 +189,7 @@ const UserProfile: React.FC = () => {
         
         if (attempt < 3) {
           console.log(`Waiting before retry ${attempt + 1}...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
 
@@ -579,9 +579,9 @@ const UserProfile: React.FC = () => {
                 <div className="w-20 h-20 bg-gradient-to-r from-[#8B5CF6] to-purple-500 rounded-full flex items-center justify-center overflow-hidden">
                   {profile.photo ? (
                     <>
-                      <img
+                    <img
                         src={profile.photo} 
-                        alt="Profile"
+                      alt="Profile"
                         className="w-20 h-20 rounded-full object-cover"
                         onLoad={() => {
                           console.log('Profile image loaded successfully:', profile.photo);
@@ -613,7 +613,7 @@ const UserProfile: React.FC = () => {
                 </div>
                 
                 {/* Camera button for upload */}
-                <button 
+                  <button
                   onClick={openFileDialog}
                   disabled={uploadingPhoto}
                   className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50"
@@ -624,20 +624,20 @@ const UserProfile: React.FC = () => {
                   ) : (
                     <Camera className="h-4 w-4 text-gray-600" />
                   )}
-                </button>
+                  </button>
 
                 {/* Delete photo button (only show if photo exists) */}
                 {profile.photo && (
-                  <button 
+                      <button
                     onClick={handlePhotoDelete}
                     disabled={uploadingPhoto}
                     className="absolute top-0 right-0 bg-red-500 p-1.5 rounded-full shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50"
                     title="Remove photo"
                   >
                     <Trash2 className="h-3 w-3 text-white" />
-                  </button>
-                )}
-              </div>
+                      </button>
+                    )}
+                  </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">{profile.name || 'No Name Set'}</h2>
                 <p className="text-gray-600">{profile.email}</p>
@@ -705,9 +705,9 @@ const UserProfile: React.FC = () => {
               <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
                 <span>• Max size: 5MB</span>
                 <span>• Supported: JPG, PNG, GIF</span>
-              </div>
             </div>
           </div>
+        </div>
 
           {/* Profile Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -892,17 +892,17 @@ const UserProfile: React.FC = () => {
           {/* Debug Section */}
           <div className="mt-8 pt-8 border-t border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Developer Tools</h3>
-            <button
+                  <button
               onClick={debugTokens}
               className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-            >
+                  >
               Debug Authentication Tokens
-            </button>
+                  </button>
             <p className="text-xs text-gray-500 mt-2">
               Check the browser console for token information
             </p>
-          </div>
-        </div>
+                </div>
+              </div>
       </div>
     </div>
   );

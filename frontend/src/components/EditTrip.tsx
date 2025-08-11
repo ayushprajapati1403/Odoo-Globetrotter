@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -8,13 +8,13 @@ import {
   MapPin, 
   Camera,
   FileText,
-  Plane,
-  Plus
+  Save
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useToast } from './Toast';
+import { Trip, canEditTrip } from '../utils/permissions';
 
 interface TripFormData {
   name: string;
@@ -32,8 +32,9 @@ interface FormErrors {
   dateRange?: string;
 }
 
-const CreateTrip: React.FC = () => {
+const EditTrip: React.FC = () => {
   const navigate = useNavigate();
+  const { tripId } = useParams<{ tripId: string }>();
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
   
@@ -48,11 +49,64 @@ const CreateTrip: React.FC = () => {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [originalData, setOriginalData] = useState<TripFormData | null>(null);
 
   // Capitalize first letter of each word
   const capitalizeWords = (str: string) => {
     return str.replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Fetch trip data on component mount
+  useEffect(() => {
+    if (tripId && user) {
+      fetchTripData();
+    }
+  }, [tripId, user]);
+
+  const fetchTripData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch trip data
+      const { data: trip, error: tripError } = await supabase
+        .from('trips')
+        .select('*')
+        .eq('id', tripId)
+        .single();
+
+      if (tripError) {
+        console.error('Error fetching trip:', tripError);
+        showError('Error', 'Failed to load trip data');
+        return;
+      }
+
+      // Check if user can edit this trip
+      if (!canEditTrip(trip, user)) {
+        showError('Access Denied', 'You do not have permission to edit this trip');
+        navigate('/my-trips');
+        return;
+      }
+
+      const tripData: TripFormData = {
+        name: trip.name || '',
+        description: trip.description || '',
+        start_date: trip.start_date || '',
+        end_date: trip.end_date || '',
+        is_public: trip.is_public || false,
+        cover_photo_url: trip.cover_photo_url || ''
+      };
+
+      setFormData(tripData);
+      setOriginalData(tripData);
+      
+    } catch (error) {
+      console.error('Error fetching trip data:', error);
+      showError('Error', 'Failed to load trip data');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (field: keyof TripFormData, value: string | boolean) => {
@@ -160,11 +214,16 @@ const CreateTrip: React.FC = () => {
     }));
   };
 
+  const hasChanges = () => {
+    if (!originalData) return false;
+    return JSON.stringify(formData) !== JSON.stringify(originalData);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
-      showError('Authentication Error', 'Please log in to create a trip');
+    if (!user || !tripId) {
+      showError('Authentication Error', 'Please log in to edit this trip');
       return;
     }
     
@@ -172,45 +231,52 @@ const CreateTrip: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    if (!hasChanges()) {
+      showInfo('No Changes', 'No changes were made to save');
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
-      showInfo('Creating Trip', 'Setting up your new trip...');
+      showInfo('Saving Changes', 'Updating your trip...');
 
-      // Create trip in database
-      const { data: tripData, error: tripError } = await supabase
+      // Update trip in database
+      const { error: updateError } = await supabase
         .from('trips')
-        .insert({
-          user_id: user.id,
+        .update({
           name: formData.name.trim(),
           description: formData.description.trim() || null,
           start_date: formData.start_date || null,
           end_date: formData.end_date || null,
           is_public: formData.is_public,
           cover_photo_url: formData.cover_photo_url || null,
-          metadata: {}
+          updated_at: new Date().toISOString()
         })
-        .select()
-        .single();
+        .eq('id', tripId)
+        .eq('user_id', user.id);
 
-      if (tripError) {
-        console.error('Trip creation error:', tripError);
-        throw tripError;
+      if (updateError) {
+        console.error('Trip update error:', updateError);
+        throw updateError;
       }
 
-      showSuccess('Trip Created!', 'Your new trip has been created successfully');
+      showSuccess('Trip Updated!', 'Your trip has been updated successfully');
       
-      // Redirect to the new trip's itinerary page
+      // Update original data to reflect changes
+      setOriginalData(formData);
+      
+      // Redirect back to trip view after a short delay
       setTimeout(() => {
-        navigate(`/itinerary/${tripData.id}`);
+        navigate(`/itinerary/${tripId}/view`);
       }, 1500);
       
     } catch (error) {
-      console.error('Error creating trip:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create trip';
-      showError('Creation Error', errorMessage);
+      console.error('Error updating trip:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update trip';
+      showError('Update Error', errorMessage);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -231,20 +297,33 @@ const CreateTrip: React.FC = () => {
     return '';
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B5CF6] mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading trip data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/my-trips')}
+            onClick={() => navigate(`/itinerary/${tripId}/view`)}
             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
           >
             <ArrowLeft className="h-5 w-5" />
-            <span>Back to My Trips</span>
+            <span>Back to Trip</span>
           </button>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Create New Trip</h1>
-          <p className="text-gray-600 text-lg">Plan your next adventure with our comprehensive trip builder</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Edit Trip</h1>
+          <p className="text-gray-600 text-lg">Update your trip details and settings</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -411,18 +490,18 @@ const CreateTrip: React.FC = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading || !formData.name.trim()}
+                disabled={isSaving || !formData.name.trim() || !hasChanges()}
                 className="w-full bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white py-4 rounded-xl font-bold text-lg hover:from-[#8B5CF6]/90 hover:to-purple-500/90 transition-all duration-300 transform hover:scale-[1.02] shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? (
+                {isSaving ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                    <span>Creating Trip...</span>
+                    <span>Saving Changes...</span>
                   </>
                 ) : (
                   <>
-                    <span>Save & Continue</span>
-                    <Check className="h-5 w-5" />
+                    <span>Save Changes</span>
+                    <Save className="h-5 w-5" />
                   </>
                 )}
               </button>
@@ -511,6 +590,7 @@ const CreateTrip: React.FC = () => {
                   <li>• Choose a memorable trip name</li>
                   <li>• Add a beautiful cover photo</li>
                   <li>• Include your travel goals in notes</li>
+                  <li>• Changes are saved automatically</li>
                 </ul>
               </div>
             </div>
@@ -521,4 +601,4 @@ const CreateTrip: React.FC = () => {
   );
 };
 
-export default CreateTrip;
+export default EditTrip;
