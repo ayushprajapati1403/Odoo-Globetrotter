@@ -16,6 +16,7 @@ import MyTrips from './components/MyTrips';
 import ItineraryBuilder from './components/ItineraryBuilder';
 import ItineraryView from './components/ItineraryView';
 import BudgetBreakdown from './components/BudgetBreakdown';
+import BudgetTracker from './components/BudgetTracker';
 import TripCalendar from './components/TripCalendar';
 import SharedItinerary from './components/SharedItinerary';
 import TripSharePage from './components/TripSharePage';
@@ -124,11 +125,31 @@ function App() {
               </ProtectedRoute>
             } />
             
+            <Route path="/budget" element={
+              <ProtectedRoute>
+                <>
+                  <Navbar />
+                  <BudgetTracker />
+                  <Footer />
+                </>
+              </ProtectedRoute>
+            } />
+            
             <Route path="/budget/:tripId" element={
               <ProtectedRoute>
                 <>
                   <Navbar />
-                  <BudgetBreakdown tripId="uuid-1234" tripName="Summer Europe Tour 2025" />
+                  <BudgetBreakdown />
+                  <Footer />
+                </>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/calendar" element={
+              <ProtectedRoute>
+                <>
+                  <Navbar />
+                  <TripCalendar />
                   <Footer />
                 </>
               </ProtectedRoute>
@@ -138,7 +159,7 @@ function App() {
               <ProtectedRoute>
                 <>
                   <Navbar />
-                  <TripCalendar tripId="uuid-1234" tripName="Summer Europe Tour 2025" />
+                  <TripCalendar />
                   <Footer />
                 </>
               </ProtectedRoute>

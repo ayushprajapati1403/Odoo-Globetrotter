@@ -27,8 +27,8 @@ const Navbar: React.FC = () => {
       href: '#',
       hasDropdown: true,
       dropdownItems: [
-        { name: 'Trip Calendar', href: '/calendar/uuid-1234' },
-        { name: 'Budget Tracker', href: '/budget/uuid-1234' }
+        { name: 'Trip Calendar', href: '/calendar' },
+        { name: 'Budget Tracker', href: '/budget' }
       ]
     }
   ];

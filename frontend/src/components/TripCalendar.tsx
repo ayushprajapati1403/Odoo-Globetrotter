@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { 
   Calendar, 
   Clock, 
@@ -31,11 +32,14 @@ interface Day {
 }
 
 interface TripCalendarProps {
-  tripId: string;
-  tripName: string;
+  tripId?: string;
+  tripName?: string;
 }
 
-const TripCalendar: React.FC<TripCalendarProps> = ({ tripId, tripName }) => {
+const TripCalendar: React.FC<TripCalendarProps> = ({ tripId: propTripId, tripName: propTripName }) => {
+  const params = useParams<{ tripId: string }>();
+  const tripId = propTripId || params.tripId || '';
+  const tripName = propTripName || 'Trip Calendar';
   // Sample data - would come from API in real app
   const [days] = useState<Day[]>([
     {

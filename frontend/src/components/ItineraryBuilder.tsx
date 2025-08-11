@@ -15,7 +15,8 @@ import {
   ChevronRight,
   ArrowLeft,
   Lightbulb,
-  Activity as ActivityIcon
+  Activity as ActivityIcon,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
@@ -24,6 +25,7 @@ import { canEditTrip } from '../utils/permissions';
 import TripSuggestions from './TripSuggestions';
 import TransportDetails from './TransportDetails';
 import AccommodationDetails from './AccommodationDetails';
+import { BudgetService } from '../services/budgetService';
 
 interface Trip {
   id: string;
@@ -42,6 +44,7 @@ interface Trip {
   deleted: boolean;
   trip_type: string;
   created_by: string | null;
+  budget: number | null;
 }
 
 const ItineraryBuilder: React.FC = () => {
@@ -54,6 +57,7 @@ const ItineraryBuilder: React.FC = () => {
   const [stops, setStops] = useState<TripStop[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [accommodationCount, setAccommodationCount] = useState(0);
   
   // Modal states
   const [showCityModal, setShowCityModal] = useState(false);
@@ -256,6 +260,7 @@ const ItineraryBuilder: React.FC = () => {
   useEffect(() => {
     if (tripId && user) {
       fetchTripData();
+      fetchAccommodationCount();
     }
   }, [tripId, user]);
 
@@ -281,6 +286,27 @@ const ItineraryBuilder: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAccommodationCount = async () => {
+    if (!tripId) return;
+    
+    try {
+      const count = await BudgetService.getTripAccommodationCount(tripId);
+      setAccommodationCount(count);
+    } catch (error) {
+      console.error('Error fetching accommodation count:', error);
+      setAccommodationCount(0);
+    }
+  };
+
+  const handleGoToBudget = () => {
+    navigate(`/budget/${tripId}`);
+  };
+
+  // Update the accommodation count when accommodations are added/updated/deleted
+  const handleAccommodationChange = () => {
+    fetchAccommodationCount();
   };
 
   const searchCities = async (query: string) => {
@@ -911,26 +937,15 @@ const ItineraryBuilder: React.FC = () => {
               </div>
             )}
 
-            {/* Accommodation Details */}
+            {/* Accommodations */}
             {stops.length > 1 && (
-              <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
-                <AccommodationDetails
-                  tripId={tripId!}
-                  stops={stops}
-                  onAccommodationAdded={() => {
-                    // Refresh trip data if needed
-                    fetchTripData();
-                  }}
-                  onAccommodationUpdated={() => {
-                    // Refresh trip data if needed
-                    fetchTripData();
-                  }}
-                  onAccommodationDeleted={() => {
-                    // Refresh trip data if needed
-                    fetchTripData();
-                  }}
-                />
-              </div>
+              <AccommodationDetails
+                tripId={tripId!}
+                stops={stops}
+                onAccommodationAdded={handleAccommodationChange}
+                onAccommodationUpdated={handleAccommodationChange}
+                onAccommodationDeleted={handleAccommodationChange}
+              />
             )}
                       </div>
 
@@ -941,7 +956,16 @@ const ItineraryBuilder: React.FC = () => {
             
             {/* Trip Stats */}
             <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Trip Overview</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Trip Overview</h3>
+                <button
+                  onClick={handleGoToBudget}
+                  className="bg-[#8B5CF6] text-white px-4 py-2 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors flex items-center space-x-2"
+                >
+                  <DollarSign className="h-4 w-4" />
+                  <span>Go to Budget</span>
+                </button>
+              </div>
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Cities</span>
@@ -969,10 +993,18 @@ const ItineraryBuilder: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Accommodations</span>
                   <span className="font-medium">
-                    {/* This will be populated when we fetch accommodations */}
-                    -
+                    {accommodationCount}
                   </span>
                 </div>
+                {trip.budget && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Budget</span>
+                    <span className="font-medium">
+                      {trip.currency === 'USD' ? '$' : trip.currency === 'EUR' ? '€' : trip.currency}
+                      {trip.budget.toLocaleString()}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

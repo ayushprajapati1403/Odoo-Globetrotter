@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -15,61 +16,27 @@ import {
   Camera,
   ChevronDown,
   ChevronUp,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
-
-interface BudgetData {
-  totalBudget: number;
-  totalEstimatedCost: number;
-  currency: string;
-  categories: {
-    [key: string]: {
-      budgeted: number;
-      estimated: number;
-      actual?: number;
-    };
-  };
-  perDayCosts: Array<{
-    day: number;
-    date: string;
-    city: string;
-    budgeted: number;
-    estimated: number;
-  }>;
-  alerts: string[];
-}
+import { BudgetService, type BudgetData } from '../services/budgetService';
+import { useToast } from './Toast';
 
 interface BudgetBreakdownProps {
-  tripId: string;
-  tripName: string;
+  tripId?: string;
+  tripName?: string;
 }
 
-const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) => {
-  // Sample budget data - would come from API in real app
-  const [budgetData] = useState<BudgetData>({
-    totalBudget: 3000,
-    totalEstimatedCost: 3250,
-    currency: 'EUR',
-    categories: {
-      'Transport': { budgeted: 800, estimated: 750 },
-      'Accommodation': { budgeted: 1200, estimated: 1300 },
-      'Activities': { budgeted: 600, estimated: 750 },
-      'Food & Dining': { budgeted: 400, estimated: 450 }
-    },
-    perDayCosts: [
-      { day: 1, date: '2025-05-12', city: 'Paris', budgeted: 200, estimated: 220 },
-      { day: 2, date: '2025-05-13', city: 'Paris', budgeted: 180, estimated: 195 },
-      { day: 3, date: '2025-05-14', city: 'Paris', budgeted: 160, estimated: 175 },
-      { day: 4, date: '2025-05-15', city: 'Rome', budgeted: 190, estimated: 210 },
-      { day: 5, date: '2025-05-16', city: 'Rome', budgeted: 170, estimated: 185 },
-      { day: 6, date: '2025-05-17', city: 'Rome', budgeted: 150, estimated: 160 }
-    ],
-    alerts: [
-      'Accommodation spending is 8% over budget',
-      'Day 4 exceeds daily budget by €20',
-      'Activities category needs attention'
-    ]
-  });
+const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId: propTripId, tripName: propTripName }) => {
+  const params = useParams<{ tripId: string }>();
+  const navigate = useNavigate();
+  const { showSuccess, showError, showInfo } = useToast();
+  
+  const tripId = propTripId || params.tripId;
+  const [tripName, setTripName] = useState(propTripName || '');
+  const [budgetData, setBudgetData] = useState<BudgetData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'daily' | 'category'>('overview');
@@ -79,20 +46,57 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
     'Transport': Plane,
     'Accommodation': Hotel,
     'Activities': Camera,
-    'Food & Dining': Utensils
+    'Food & Dining': Utensils,
+    'Other': DollarSign
   };
 
   const categoryColors: { [key: string]: string } = {
     'Transport': 'bg-blue-500',
     'Accommodation': 'bg-green-500',
     'Activities': 'bg-purple-500',
-    'Food & Dining': 'bg-orange-500'
+    'Food & Dining': 'bg-orange-500',
+    'Other': 'bg-gray-500'
+  };
+
+  useEffect(() => {
+    if (tripId) {
+      fetchBudgetData();
+    }
+  }, [tripId]);
+
+  const fetchBudgetData = async () => {
+    if (!tripId) return;
+    
+    try {
+      setLoading(true);
+      const data = await BudgetService.getTripBudget(tripId);
+      setBudgetData(data);
+      
+      // If we don't have a trip name, try to get it from the URL or set a default
+      if (!tripName) {
+        setTripName('Trip Budget');
+      }
+    } catch (error) {
+      console.error('Error fetching budget data:', error);
+      showError('Failed to load budget data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchBudgetData();
+    setRefreshing(false);
+    showSuccess('Budget data refreshed');
   };
 
   // Calculate budget status
   const budgetStatus = useMemo(() => {
-    const difference = budgetData.totalEstimatedCost - budgetData.totalBudget;
-    const percentage = (difference / budgetData.totalBudget) * 100;
+    if (!budgetData) return null;
+    
+    const difference = (budgetData.totalEstimatedCost || 0) - (budgetData.totalBudget || 0);
+    const percentage = budgetData.totalBudget ? (difference / budgetData.totalBudget) * 100 : 0;
     
     return {
       difference,
@@ -104,18 +108,27 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
 
   // Calculate category percentages
   const categoryPercentages = useMemo(() => {
+    if (!budgetData) return [];
+    
     return Object.entries(budgetData.categories).map(([category, data]) => ({
       category,
-      percentage: (data.estimated / budgetData.totalEstimatedCost) * 100,
+      percentage: budgetData.totalEstimatedCost ? (data.estimated / budgetData.totalEstimatedCost) * 100 : 0,
       ...data
     }));
   }, [budgetData]);
 
   const formatCurrency = (amount: number) => {
+    if (!budgetData) return `$${amount.toLocaleString()}`;
+    
     const symbols: { [key: string]: string } = {
       'EUR': '€',
       'USD': '$',
-      'GBP': '£'
+      'GBP': '£',
+      'CAD': 'C$',
+      'AUD': 'A$',
+      'JPY': '¥',
+      'SGD': 'S$',
+      'HKD': 'HK$'
     };
     return `${symbols[budgetData.currency] || budgetData.currency}${amount.toLocaleString()}`;
   };
@@ -129,12 +142,12 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
 
   const handleExportBudget = () => {
     // In real app, this would generate a PDF or CSV
-    alert('Budget export functionality would be implemented here');
+    showInfo('Export functionality would be implemented here');
   };
 
   const getCategoryStatus = (category: any) => {
     const difference = category.estimated - category.budgeted;
-    const percentage = (difference / category.budgeted) * 100;
+    const percentage = category.budgeted ? (difference / category.budgeted) * 100 : 0;
     
     return {
       difference,
@@ -144,15 +157,55 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
     };
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!budgetData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-20">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">No Budget Data Found</h1>
+            <p className="text-gray-600 mb-6">This trip doesn't have any budget information yet.</p>
+            <button
+              onClick={() => navigate(-1)}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 inline mr-2" />
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Trip Budget</h1>
-              <p className="text-gray-600 text-lg">{tripName} • Financial Overview</p>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="h-6 w-6" />
+              </button>
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 mb-2">Trip Budget</h1>
+                <p className="text-gray-600 text-lg">{tripName} • Financial Overview</p>
+              </div>
             </div>
             
             {/* Action Buttons */}
@@ -165,9 +218,13 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
                 <span>Export Budget</span>
               </button>
               
-              <button className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                <RefreshCw className="h-4 w-4" />
-                <span>Refresh</span>
+              <button 
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
               </button>
             </div>
           </div>
@@ -215,7 +272,7 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
               <div>
                 <p className="text-gray-600 text-sm font-medium">Total Budget</p>
                 <p className="text-3xl font-bold text-gray-900">
-                  {formatCurrency(budgetData.totalBudget)}
+                  {budgetData.totalBudget ? formatCurrency(budgetData.totalBudget) : 'Not Set'}
                 </p>
               </div>
               <div className="bg-blue-100 p-3 rounded-xl">
@@ -230,7 +287,7 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
               <div>
                 <p className="text-gray-600 text-sm font-medium">Estimated Cost</p>
                 <p className="text-3xl font-bold text-gray-900">
-                  {formatCurrency(budgetData.totalEstimatedCost)}
+                  {formatCurrency(budgetData.totalEstimatedCost || 0)}
                 </p>
               </div>
               <div className="bg-purple-100 p-3 rounded-xl">
@@ -240,36 +297,40 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
           </div>
 
           {/* Budget Status */}
-          <div className={`rounded-2xl p-6 shadow-sm border ${
-            budgetStatus.isOverBudget 
-              ? 'bg-red-50 border-red-200' 
-              : 'bg-green-50 border-green-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Status</p>
-                <p className={`text-3xl font-bold ${
-                  budgetStatus.isOverBudget ? 'text-red-600' : 'text-green-600'
+          {budgetStatus && (
+            <div className={`rounded-2xl p-6 shadow-sm border ${
+              budgetStatus.isOverBudget 
+                ? 'bg-red-50 border-red-200' 
+                : 'bg-green-50 border-green-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">Status</p>
+                  <p className={`text-3xl font-bold ${
+                    budgetStatus.isOverBudget ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {budgetStatus.status}
+                  </p>
+                  {budgetData.totalBudget && (
+                    <p className={`text-sm ${
+                      budgetStatus.isOverBudget ? 'text-red-600' : 'text-green-600'
+                    }`}>
+                      {budgetStatus.isOverBudget ? '+' : ''}{formatCurrency(Math.abs(budgetStatus.difference))}
+                    </p>
+                  )}
+                </div>
+                <div className={`p-3 rounded-xl ${
+                  budgetStatus.isOverBudget ? 'bg-red-100' : 'bg-green-100'
                 }`}>
-                  {budgetStatus.status}
-                </p>
-                <p className={`text-sm ${
-                  budgetStatus.isOverBudget ? 'text-red-600' : 'text-green-600'
-                }`}>
-                  {budgetStatus.isOverBudget ? '+' : ''}{formatCurrency(Math.abs(budgetStatus.difference))}
-                </p>
-              </div>
-              <div className={`p-3 rounded-xl ${
-                budgetStatus.isOverBudget ? 'bg-red-100' : 'bg-green-100'
-              }`}>
-                {budgetStatus.isOverBudget ? (
-                  <TrendingUp className={`h-8 w-8 ${budgetStatus.isOverBudget ? 'text-red-600' : 'text-green-600'}`} />
-                ) : (
-                  <TrendingDown className="h-8 w-8 text-green-600" />
-                )}
+                  {budgetStatus.isOverBudget ? (
+                    <TrendingUp className={`h-8 w-8 ${budgetStatus.isOverBudget ? 'text-red-600' : 'text-green-600'}`} />
+                  ) : (
+                    <TrendingDown className="h-8 w-8 text-green-600" />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Budget Alerts */}
@@ -323,9 +384,11 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
                           <div className="text-sm font-medium text-gray-900">
                             {formatCurrency(category.estimated)}
                           </div>
-                          <div className={`text-xs ${status.isOver ? 'text-red-500' : 'text-green-500'}`}>
-                            {status.isOver ? '+' : ''}{formatCurrency(Math.abs(status.difference))}
-                          </div>
+                          {category.budgeted > 0 && (
+                            <div className={`text-xs ${status.isOver ? 'text-red-500' : 'text-green-500'}`}>
+                              {status.isOver ? '+' : ''}{formatCurrency(Math.abs(status.difference))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       
@@ -338,7 +401,11 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
                       
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>{category.percentage.toFixed(1)}% of total</span>
-                        <span>Budget: {formatCurrency(category.budgeted)}</span>
+                        {category.budgeted > 0 ? (
+                          <span>Budget: {formatCurrency(category.budgeted)}</span>
+                        ) : (
+                          <span>No budget set</span>
+                        )}
                       </div>
                     </div>
                   );
@@ -349,48 +416,55 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
             {/* Daily Spending Chart */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
               <h3 className="text-xl font-bold text-gray-900 mb-6">Daily Spending</h3>
-              <div className="space-y-4">
-                {budgetData.perDayCosts.map((day) => {
-                  const isOverBudget = day.estimated > day.budgeted;
-                  const percentage = (day.estimated / Math.max(...budgetData.perDayCosts.map(d => d.estimated))) * 100;
-                  
-                  return (
-                    <div key={day.day} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-[#8B5CF6]/20 p-2 rounded-lg">
-                            <Calendar className="h-4 w-4 text-[#8B5CF6]" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              Day {day.day} - {formatDate(day.date)}
+              {budgetData.perDayCosts.length > 0 ? (
+                <div className="space-y-4">
+                  {budgetData.perDayCosts.map((day) => {
+                    const isOverBudget = day.estimated > day.budgeted;
+                    const percentage = (day.estimated / Math.max(...budgetData.perDayCosts.map(d => d.estimated))) * 100;
+                    
+                    return (
+                      <div key={day.day} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-[#8B5CF6]/20 p-2 rounded-lg">
+                              <Calendar className="h-4 w-4 text-[#8B5CF6]" />
                             </div>
-                            <div className="text-sm text-gray-600 flex items-center space-x-1">
-                              <MapPin className="h-3 w-3" />
-                              <span>{day.city}</span>
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                Day {day.day} - {formatDate(day.date)}
+                              </div>
+                              <div className="text-sm text-gray-600 flex items-center space-x-1">
+                                <MapPin className="h-3 w-3" />
+                                <span>{day.city}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-sm font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                              {formatCurrency(day.estimated)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Budget: {formatCurrency(day.budgeted)}
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className={`text-sm font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
-                            {formatCurrency(day.estimated)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Budget: {formatCurrency(day.budgeted)}
-                          </div>
+                        
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${isOverBudget ? 'bg-red-500' : 'bg-[#8B5CF6]'}`}
+                            style={{ width: `${percentage}%` }}
+                          ></div>
                         </div>
                       </div>
-                      
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${isOverBudget ? 'bg-red-500' : 'bg-[#8B5CF6]'}`}
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>No daily cost data available</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -398,39 +472,46 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
         {viewMode === 'daily' && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
             <h3 className="text-xl font-bold text-gray-900 mb-6">Daily Budget Breakdown</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Day</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">City</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-900">Budgeted</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-900">Estimated</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-900">Difference</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {budgetData.perDayCosts.map((day) => {
-                    const difference = day.estimated - day.budgeted;
-                    const isOver = difference > 0;
-                    
-                    return (
-                      <tr key={day.day} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 font-medium">Day {day.day}</td>
-                        <td className="py-3 px-4 text-gray-600">{formatDate(day.date)}</td>
-                        <td className="py-3 px-4 text-gray-600">{day.city}</td>
-                        <td className="py-3 px-4 text-right">{formatCurrency(day.budgeted)}</td>
-                        <td className="py-3 px-4 text-right font-medium">{formatCurrency(day.estimated)}</td>
-                        <td className={`py-3 px-4 text-right font-medium ${isOver ? 'text-red-600' : 'text-green-600'}`}>
-                          {isOver ? '+' : ''}{formatCurrency(Math.abs(difference))}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {budgetData.perDayCosts.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Day</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Date</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-900">City</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-900">Budgeted</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-900">Estimated</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-900">Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {budgetData.perDayCosts.map((day) => {
+                      const difference = day.estimated - day.budgeted;
+                      const isOver = difference > 0;
+                      
+                      return (
+                        <tr key={day.day} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium">Day {day.day}</td>
+                          <td className="py-3 px-4 text-gray-600">{formatDate(day.date)}</td>
+                          <td className="py-3 px-4 text-gray-600">{day.city}</td>
+                          <td className="py-3 px-4 text-right">{formatCurrency(day.budgeted)}</td>
+                          <td className="py-3 px-4 text-right font-medium">{formatCurrency(day.estimated)}</td>
+                          <td className={`py-3 px-4 text-right font-medium ${isOver ? 'text-red-600' : 'text-green-600'}`}>
+                            {isOver ? '+' : ''}{formatCurrency(Math.abs(difference))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No daily cost data available</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -449,7 +530,7 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
                     <div>
                       <h3 className="text-lg font-bold text-gray-900">{category}</h3>
                       <p className="text-sm text-gray-600">
-                        {((data.estimated / budgetData.totalEstimatedCost) * 100).toFixed(1)}% of total budget
+                        {((data.estimated / (budgetData.totalEstimatedCost || 1)) * 100).toFixed(1)}% of total budget
                       </p>
                     </div>
                   </div>
@@ -457,29 +538,37 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId, tripName }) =
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600">Budgeted</span>
-                      <span className="font-medium">{formatCurrency(data.budgeted)}</span>
+                      <span className="font-medium">
+                        {data.budgeted > 0 ? formatCurrency(data.budgeted) : 'Not set'}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600">Estimated</span>
                       <span className="font-medium">{formatCurrency(data.estimated)}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Difference</span>
-                      <span className={`font-medium ${status.isOver ? 'text-red-600' : 'text-green-600'}`}>
-                        {status.isOver ? '+' : ''}{formatCurrency(Math.abs(status.difference))}
-                      </span>
-                    </div>
+                    {data.budgeted > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Difference</span>
+                        <span className={`font-medium ${status.isOver ? 'text-red-600' : 'text-green-600'}`}>
+                          {status.isOver ? '+' : ''}{formatCurrency(Math.abs(status.difference))}
+                        </span>
+                      </div>
+                    )}
                     
-                    <div className="w-full bg-gray-200 rounded-full h-3 mt-4">
-                      <div 
-                        className={`h-3 rounded-full ${status.isOver ? 'bg-red-500' : categoryColors[category]}`}
-                        style={{ width: `${Math.min((data.estimated / data.budgeted) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-                    
-                    <p className="text-xs text-gray-500 text-center">
-                      {((data.estimated / data.budgeted) * 100).toFixed(1)}% of category budget used
-                    </p>
+                    {data.budgeted > 0 && (
+                      <>
+                        <div className="w-full bg-gray-200 rounded-full h-3 mt-4">
+                          <div 
+                            className={`h-3 rounded-full ${status.isOver ? 'bg-red-500' : categoryColors[category]}`}
+                            style={{ width: `${Math.min((data.estimated / data.budgeted) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                        
+                        <p className="text-xs text-gray-500 text-center">
+                          {((data.estimated / data.budgeted) * 100).toFixed(1)}% of category budget used
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               );

@@ -11,7 +11,10 @@ import {
   Globe,
   Users,
   Headphones,
-  FileText
+  FileText,
+  Star,
+  Heart,
+  Camera
 } from 'lucide-react';
 
 const ContactUs: React.FC = () => {
@@ -31,21 +34,24 @@ const ContactUs: React.FC = () => {
       title: "Email Support",
       description: "Get help via email within 24 hours",
       contact: "support@travelpro.com",
-      action: "Send Email"
+      action: "Send Email",
+      color: "from-blue-500 to-cyan-500"
     },
     {
       icon: MessageCircle,
       title: "Live Chat",
       description: "Chat with our support team in real-time",
       contact: "Available 9 AM - 6 PM EST",
-      action: "Start Chat"
+      action: "Start Chat",
+      color: "from-green-500 to-emerald-500"
     },
     {
       icon: Phone,
       title: "Phone Support",
       description: "Speak directly with our travel experts",
       contact: "+1 (555) 123-4567",
-      action: "Call Now"
+      action: "Call Now",
+      color: "from-purple-500 to-pink-500"
     }
   ];
 
@@ -124,57 +130,77 @@ const ContactUs: React.FC = () => {
     }, 3000);
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
-      {/* Hero Section */}
-      <div className="relative py-20 overflow-hidden">
-        {/* Background Elements */}
+    <div className="min-h-screen bg-slate-900">
+      {/* Hero Section with Full-Height Maldives Background */}
+      <div className="relative min-h-screen overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-10 w-32 h-32 bg-[#8B5CF6]/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-32 right-16 w-40 h-40 bg-[#8B5CF6]/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <img
+            src="https://images.pexels.com/photos/1450360/pexels-photo-1450360.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop"
+            alt="Maldives crystal clear turquoise waters"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/50"></div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center space-x-2 bg-[#8B5CF6]/10 text-[#8B5CF6] px-4 py-2 rounded-full text-sm font-medium mb-6">
-            <Headphones className="h-4 w-4" />
-            <span>We're Here to Help</span>
-          </div>
-          
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            Get in Touch
-            <span className="block bg-gradient-to-r from-[#8B5CF6] to-purple-400 bg-clip-text text-transparent">
-              We'd Love to Hear From You
-            </span>
-          </h1>
-          
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Have questions about TravelPro? Need help planning your next adventure? 
-            Our friendly support team is here to assist you every step of the way.
-          </p>
+        {/* Floating Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-cyan-400/20 to-blue-500/20 rounded-full blur-xl animate-float"></div>
+          <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-r from-emerald-400/20 to-teal-500/20 rounded-full blur-lg animate-float" style={{animationDelay: '1s'}}></div>
+          <div className="absolute bottom-32 left-1/4 w-40 h-40 bg-gradient-to-r from-purple-400/20 to-pink-500/20 rounded-full blur-2xl animate-float" style={{animationDelay: '2s'}}></div>
+        </div>
 
-          <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4" />
-              <span>24/7 Support</span>
+        <div className="relative z-10 min-h-screen flex items-center">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full">
+            <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm text-cyan-400 px-6 py-3 rounded-full text-sm font-medium mb-8 border border-white/20">
+              <Headphones className="h-4 w-4" />
+              <span>We're Here to Help</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Globe className="h-4 w-4" />
-              <span>Global Coverage</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4" />
-              <span>Expert Team</span>
+            
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+              Get in Touch
+              <span className="block bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+                We'd Love to Hear From You
+              </span>
+            </h1>
+            
+            <p className="text-xl text-white/80 max-w-3xl mx-auto mb-12 leading-relaxed">
+              Have questions about TravelPro? Need help planning your next adventure? 
+              Our friendly support team is here to assist you every step of the way.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-white/60">
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4" />
+                <span>24/7 Support</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Globe className="h-4 w-4" />
+                <span>Global Coverage</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4" />
+                <span>Expert Team</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Contact Methods */}
-      <div className="py-20 bg-white">
+      {/* Contact Methods Section */}
+      <div className="py-20 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Choose Your Preferred Way to Connect</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Choose Your Preferred Way to Connect</h2>
+            <p className="text-xl text-white/70 max-w-3xl mx-auto">
               We offer multiple ways to get in touch. Pick the method that works best for you.
             </p>
           </div>
@@ -183,14 +209,14 @@ const ContactUs: React.FC = () => {
             {contactMethods.map((method, index) => {
               const Icon = method.icon;
               return (
-                <div key={index} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 hover:shadow-lg hover:border-[#8B5CF6]/30 transition-all group text-center">
-                  <div className="bg-[#8B5CF6]/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:bg-[#8B5CF6] group-hover:text-white transition-colors">
-                    <Icon className="h-8 w-8 text-[#8B5CF6] group-hover:text-white" />
+                <div key={index} className="group bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20 hover:bg-white/20 hover:border-cyan-400/50 transition-all duration-300 hover:-translate-y-2">
+                  <div className={`bg-gradient-to-r ${method.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                    <Icon className="h-8 w-8 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{method.title}</h3>
-                  <p className="text-gray-600 mb-4">{method.description}</p>
-                  <div className="text-[#8B5CF6] font-semibold mb-6">{method.contact}</div>
-                  <button className="w-full bg-[#8B5CF6] text-white py-3 px-6 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors font-semibold">
+                  <h3 className="text-xl font-bold text-white mb-3">{method.title}</h3>
+                  <p className="text-white/70 mb-4">{method.description}</p>
+                  <div className="text-cyan-400 font-semibold mb-6">{method.contact}</div>
+                  <button className="w-full bg-gradient-to-r from-cyan-500 to-emerald-500 text-white py-3 px-6 rounded-xl hover:from-cyan-400 hover:to-emerald-400 transition-all duration-300 font-semibold group-hover:shadow-lg group-hover:shadow-cyan-500/25">
                     {method.action}
                   </button>
                 </div>
@@ -200,26 +226,26 @@ const ContactUs: React.FC = () => {
         </div>
       </div>
 
-      {/* Contact Form & Support Categories */}
-      <div className="py-20">
+      {/* Contact Form Section */}
+      <div className="py-20 bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             
             {/* Contact Form */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Send Us a Message</h3>
+            <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20">
+              <h3 className="text-2xl font-bold text-white mb-6">Send Us a Message</h3>
               
               {isSubmitted ? (
                 <div className="text-center py-12">
-                  <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-                  <h4 className="text-xl font-bold text-gray-900 mb-2">Message Sent Successfully!</h4>
-                  <p className="text-gray-600">We'll get back to you within 24 hours.</p>
+                  <CheckCircle className="h-16 w-16 text-emerald-400 mx-auto mb-4" />
+                  <h4 className="text-xl font-bold text-white mb-2">Message Sent Successfully!</h4>
+                  <p className="text-white/70">We'll get back to you within 24 hours.</p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-white/80 mb-2">
                         Full Name *
                       </label>
                       <input
@@ -228,12 +254,12 @@ const ContactUs: React.FC = () => {
                         value={formData.name}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300"
                         placeholder="Enter your full name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-white/80 mb-2">
                         Email Address *
                       </label>
                       <input
@@ -242,33 +268,33 @@ const ContactUs: React.FC = () => {
                         value={formData.email}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300"
                         placeholder="Enter your email"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-white/80 mb-2">
                       Category
                     </label>
                     <select
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300"
                     >
-                      <option value="general">General Inquiry</option>
-                      <option value="support">Technical Support</option>
-                      <option value="billing">Account & Billing</option>
-                      <option value="planning">Trip Planning Help</option>
-                      <option value="partnership">Partnership</option>
-                      <option value="press">Press Inquiry</option>
+                      <option value="general" className="bg-slate-800">General Inquiry</option>
+                      <option value="support" className="bg-slate-800">Technical Support</option>
+                      <option value="billing" className="bg-slate-800">Account & Billing</option>
+                      <option value="planning" className="bg-slate-800">Trip Planning Help</option>
+                      <option value="partnership" className="bg-slate-800">Partnership</option>
+                      <option value="press" className="bg-slate-800">Press Inquiry</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-white/80 mb-2">
                       Subject *
                     </label>
                     <input
@@ -277,13 +303,13 @@ const ContactUs: React.FC = () => {
                       value={formData.subject}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300"
                       placeholder="Brief description of your inquiry"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-white/80 mb-2">
                       Message *
                     </label>
                     <textarea
@@ -292,7 +318,7 @@ const ContactUs: React.FC = () => {
                       onChange={handleInputChange}
                       required
                       rows={6}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300 resize-none"
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 resize-none"
                       placeholder="Tell us more about how we can help you..."
                     />
                   </div>
@@ -300,7 +326,7 @@ const ContactUs: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white py-4 rounded-xl font-bold text-lg hover:from-[#8B5CF6]/90 hover:to-purple-500/90 transition-all duration-300 transform hover:scale-[1.02] shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-gradient-to-r from-cyan-500 to-emerald-500 text-white py-4 rounded-xl font-bold text-lg hover:from-cyan-400 hover:to-emerald-400 transition-all duration-300 transform hover:scale-[1.02] shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <>
@@ -320,19 +346,19 @@ const ContactUs: React.FC = () => {
 
             {/* Support Categories */}
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">How Can We Help?</h3>
+              <h3 className="text-2xl font-bold text-white mb-6">How Can We Help?</h3>
               <div className="space-y-4">
                 {supportCategories.map((category, index) => {
                   const Icon = category.icon;
                   return (
-                    <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md hover:border-[#8B5CF6]/30 transition-all">
+                    <div key={index} className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 hover:border-cyan-400/50 transition-all duration-300 group">
                       <div className="flex items-start space-x-4">
-                        <div className="bg-[#8B5CF6]/20 w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <Icon className="h-6 w-6 text-[#8B5CF6]" />
+                        <div className="bg-gradient-to-r from-cyan-500 to-emerald-500 w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                          <Icon className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                          <h4 className="text-lg font-bold text-gray-900 mb-2">{category.title}</h4>
-                          <p className="text-gray-600 text-sm">{category.description}</p>
+                          <h4 className="text-lg font-bold text-white mb-2">{category.title}</h4>
+                          <p className="text-white/70 text-sm">{category.description}</p>
                         </div>
                       </div>
                     </div>
@@ -341,10 +367,10 @@ const ContactUs: React.FC = () => {
               </div>
 
               {/* FAQ Link */}
-              <div className="mt-8 bg-gradient-to-r from-[#8B5CF6]/10 to-purple-500/10 rounded-2xl p-6 border border-[#8B5CF6]/20">
-                <h4 className="text-lg font-bold text-gray-900 mb-2">Looking for Quick Answers?</h4>
-                <p className="text-gray-600 mb-4">Check out our comprehensive FAQ section for instant solutions to common questions.</p>
-                <button className="flex items-center space-x-2 text-[#8B5CF6] font-semibold hover:text-purple-400 transition-colors">
+              <div className="mt-8 bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 backdrop-blur-sm rounded-2xl p-6 border border-cyan-400/30">
+                <h4 className="text-lg font-bold text-white mb-2">Looking for Quick Answers?</h4>
+                <p className="text-white/70 mb-4">Check out our comprehensive FAQ section for instant solutions to common questions.</p>
+                <button className="flex items-center space-x-2 text-cyan-400 font-semibold hover:text-cyan-300 transition-colors">
                   <span>Visit FAQ Center</span>
                   <ArrowRight className="h-4 w-4" />
                 </button>
@@ -354,37 +380,37 @@ const ContactUs: React.FC = () => {
         </div>
       </div>
 
-      {/* Office Locations */}
-      <div className="py-20 bg-white">
+      {/* Office Locations Section */}
+      <div className="py-20 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Our Global Offices</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Our Global Offices</h2>
+            <p className="text-xl text-white/70 max-w-3xl mx-auto">
               With offices around the world, we're always close by to provide local support and expertise.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {officeLocations.map((office, index) => (
-              <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-lg transition-shadow">
+              <div key={index} className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 hover:border-cyan-400/50 transition-all duration-300 group">
                 <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">{office.city}</h3>
+                  <h3 className="text-xl font-bold text-white">{office.city}</h3>
                   {office.isHeadquarters && (
-                    <span className="bg-[#8B5CF6] text-white px-2 py-1 rounded-full text-xs font-medium">
+                    <span className="bg-gradient-to-r from-cyan-500 to-emerald-500 text-white px-2 py-1 rounded-full text-xs font-medium">
                       HQ
                     </span>
                   )}
                 </div>
-                <div className="space-y-3 text-gray-600">
+                <div className="space-y-3 text-white/70">
                   <div className="flex items-start space-x-3">
-                    <MapPin className="h-5 w-5 text-[#8B5CF6] flex-shrink-0 mt-0.5" />
+                    <MapPin className="h-5 w-5 text-cyan-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <div>{office.address}</div>
                       <div>{office.zipCode}</div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Phone className="h-5 w-5 text-[#8B5CF6] flex-shrink-0" />
+                    <Phone className="h-5 w-5 text-cyan-400 flex-shrink-0" />
                     <span>{office.phone}</span>
                   </div>
                 </div>
@@ -394,28 +420,28 @@ const ContactUs: React.FC = () => {
         </div>
       </div>
 
-      {/* Response Time Promise */}
-      <div className="py-20 bg-gradient-to-r from-[#8B5CF6] to-purple-500">
+      {/* Response Time Promise Section */}
+      <div className="py-20 bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
             Our Response Time Promise
           </h2>
-          <p className="text-xl text-white/90 mb-12 max-w-2xl mx-auto">
+          <p className="text-xl text-white/80 mb-12 max-w-2xl mx-auto">
             We're committed to providing fast, helpful support when you need it most.
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
-              <div className="text-3xl font-bold text-white mb-2">&lt; 1 min</div>
-              <div className="text-white/90">Live Chat Response</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
+              <div className="text-4xl font-bold text-cyan-400 mb-2">&lt; 1 min</div>
+              <div className="text-white/80">Live Chat Response</div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
-              <div className="text-3xl font-bold text-white mb-2">&lt; 4 hours</div>
-              <div className="text-white/90">Email Response</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
+              <div className="text-4xl font-bold text-emerald-400 mb-2">&lt; 4 hours</div>
+              <div className="text-white/80">Email Response</div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
-              <div className="text-3xl font-bold text-white mb-2">24/7</div>
-              <div className="text-white/90">Emergency Support</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
+              <div className="text-4xl font-bold text-purple-400 mb-2">24/7</div>
+              <div className="text-white/80">Emergency Support</div>
             </div>
           </div>
         </div>

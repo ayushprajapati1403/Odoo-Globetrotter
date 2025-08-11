@@ -113,57 +113,84 @@ const AboutUs: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
-      {/* Hero Section */}
-      <div className="relative py-20 overflow-hidden">
-        {/* Background Elements */}
+    <div className="min-h-screen bg-gray-900">
+      {/* Hero Section with Full-Height Team Background */}
+      <div className="relative min-h-screen overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-10 w-32 h-32 bg-[#8B5CF6]/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-32 right-16 w-40 h-40 bg-[#8B5CF6]/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <img
+            src="https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop"
+            alt="Team collaboration and planning"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/50"></div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center space-x-2 bg-[#8B5CF6]/10 text-[#8B5CF6] px-4 py-2 rounded-full text-sm font-medium mb-6">
-            <Plane className="h-4 w-4" />
-            <span>About TravelPro</span>
-          </div>
-          
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            Transforming How the World
-            <span className="block bg-gradient-to-r from-[#8B5CF6] to-purple-400 bg-clip-text text-transparent">
-              Plans Travel
-            </span>
-          </h1>
-          
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            We're on a mission to make travel planning effortless, collaborative, and inspiring. 
-            Join millions of travelers who've discovered smarter ways to explore the world.
-          </p>
+        {/* Floating Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-purple-400/20 to-blue-500/20 rounded-full blur-xl animate-float"></div>
+          <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-r from-emerald-400/20 to-teal-500/20 rounded-full blur-lg animate-float" style={{animationDelay: '1s'}}></div>
+          <div className="absolute bottom-32 left-1/4 w-40 h-40 bg-gradient-to-r from-purple-400/20 to-pink-500/20 rounded-full blur-2xl animate-float" style={{animationDelay: '2s'}}></div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-[#8B5CF6] mb-2">2M+</div>
-              <div className="text-gray-600">Happy Travelers</div>
+        <div className="relative z-10 min-h-screen flex items-center">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full">
+            <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm text-purple-400 px-6 py-3 rounded-full text-sm font-medium mb-8 border border-white/20">
+              <Plane className="h-4 w-4" />
+              <span>About TravelPro</span>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-[#8B5CF6] mb-2">150+</div>
-              <div className="text-gray-600">Countries Covered</div>
+            
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+              Transforming How the World
+              <span className="block bg-gradient-to-r from-purple-400 to-emerald-400 bg-clip-text text-transparent">
+                Plans Travel
+              </span>
+            </h1>
+            
+            <p className="text-xl text-white/80 max-w-3xl mx-auto mb-12 leading-relaxed">
+              We're on a mission to make travel planning effortless, collaborative, and inspiring. 
+              Join millions of travelers who've discovered smarter ways to explore the world.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-purple-400 mb-2">2M+</div>
+                <div className="text-white/70">Happy Travelers</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-purple-400 mb-2">150+</div>
+                <div className="text-white/70">Countries Covered</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-purple-400 mb-2">500K+</div>
+                <div className="text-white/70">Trips Planned</div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-[#8B5CF6] mb-2">500K+</div>
-              <div className="text-gray-600">Trips Planned</div>
+
+            <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-white/60 mt-12">
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4" />
+                <span>Expert Team</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Globe className="h-4 w-4" />
+                <span>Global Reach</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4" />
+                <span>Trusted Platform</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Our Story Section */}
-      <div className="py-20 bg-white">
+      <div className="py-20 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Our Story</h2>
-              <div className="space-y-4 text-gray-600 leading-relaxed">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Our Story</h2>
+              <div className="space-y-4 text-white/70 leading-relaxed">
                 <p>
                   TravelPro was born from a simple frustration: planning amazing trips shouldn't be overwhelming. 
                   Our founders, avid travelers themselves, spent countless hours juggling spreadsheets, bookmarks, 
@@ -182,9 +209,9 @@ const AboutUs: React.FC = () => {
             </div>
             <div className="relative">
               <img
-                src="https://images.pexels.com/photos/1591373/pexels-photo-1591373.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop"
-                alt="Travel planning"
-                className="rounded-2xl shadow-2xl"
+                src="https://images.pexels.com/photos/1157557/pexels-photo-1157557.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop"
+                alt="Group of friends traveling together"
+                className="rounded-2xl shadow-2xl border border-white/20"
               />
               <div className="absolute -bottom-6 -right-6 bg-[#8B5CF6] text-white p-6 rounded-2xl shadow-xl">
                 <div className="text-2xl font-bold">4.9★</div>
@@ -196,11 +223,11 @@ const AboutUs: React.FC = () => {
       </div>
 
       {/* Our Values Section */}
-      <div className="py-20">
+      <div className="py-20 bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Our Values</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Our Values</h2>
+            <p className="text-xl text-white/70 max-w-3xl mx-auto">
               These core principles guide everything we do and shape the experience we create for travelers worldwide.
             </p>
           </div>
@@ -209,12 +236,12 @@ const AboutUs: React.FC = () => {
             {values.map((value, index) => {
               const Icon = value.icon;
               return (
-                <div key={index} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 hover:shadow-lg transition-shadow">
+                <div key={index} className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 hover:border-purple-400/50 transition-all duration-300">
                   <div className="bg-[#8B5CF6]/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                     <Icon className="h-8 w-8 text-[#8B5CF6]" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">{value.title}</h3>
-                  <p className="text-gray-600 leading-relaxed">{value.description}</p>
+                  <h3 className="text-xl font-bold text-white mb-4">{value.title}</h3>
+                  <p className="text-white/70 leading-relaxed">{value.description}</p>
                 </div>
               );
             })}
@@ -223,11 +250,11 @@ const AboutUs: React.FC = () => {
       </div>
 
       {/* Features Section */}
-      <div className="py-20 bg-white">
+      <div className="py-20 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">What Makes Us Different</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">What Makes Us Different</h2>
+            <p className="text-xl text-white/70 max-w-3xl mx-auto">
               We've built the most comprehensive travel planning platform with features that actually make a difference.
             </p>
           </div>
@@ -240,8 +267,8 @@ const AboutUs: React.FC = () => {
                   <div className="bg-gradient-to-r from-[#8B5CF6] to-purple-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform">
                     <Icon className="h-8 w-8 text-white" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3">{feature.title}</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">{feature.description}</p>
+                  <h3 className="text-lg font-bold text-white mb-3">{feature.title}</h3>
+                  <p className="text-white/70 text-sm leading-relaxed">{feature.description}</p>
                 </div>
               );
             })}
@@ -250,11 +277,11 @@ const AboutUs: React.FC = () => {
       </div>
 
       {/* Timeline Section */}
-      <div className="py-20">
+      <div className="py-20 bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Our Journey</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Our Journey</h2>
+            <p className="text-xl text-white/70 max-w-3xl mx-auto">
               From a simple idea to a global platform trusted by millions of travelers.
             </p>
           </div>
@@ -272,10 +299,10 @@ const AboutUs: React.FC = () => {
                   </div>
                   
                   {/* Content */}
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex-1">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 flex-1">
                     <div className="md:hidden text-[#8B5CF6] font-bold text-sm mb-2">{milestone.year}</div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{milestone.title}</h3>
-                    <p className="text-gray-600">{milestone.description}</p>
+                    <h3 className="text-xl font-bold text-white mb-2">{milestone.title}</h3>
+                    <p className="text-white/70">{milestone.description}</p>
                   </div>
                 </div>
               ))}
@@ -285,11 +312,11 @@ const AboutUs: React.FC = () => {
       </div>
 
       {/* Team Section */}
-      <div className="py-20 bg-white">
+      <div className="py-20 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Meet Our Team</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Meet Our Team</h2>
+            <p className="text-xl text-white/70 max-w-3xl mx-auto">
               Passionate travelers and technologists working together to revolutionize trip planning.
             </p>
           </div>
@@ -301,12 +328,12 @@ const AboutUs: React.FC = () => {
                   <img
                     src={member.image}
                     alt={member.name}
-                    className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-gray-200 group-hover:border-[#8B5CF6] transition-colors"
+                    className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-white/20 group-hover:border-[#8B5CF6] transition-colors"
                   />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1">{member.name}</h3>
+                <h3 className="text-lg font-bold text-white mb-1">{member.name}</h3>
                 <div className="text-[#8B5CF6] font-medium text-sm mb-3">{member.role}</div>
-                <p className="text-gray-600 text-sm leading-relaxed">{member.bio}</p>
+                <p className="text-white/70 text-sm leading-relaxed">{member.bio}</p>
               </div>
             ))}
           </div>
