@@ -22,7 +22,8 @@ interface TripFormData {
   start_date: string;
   end_date: string;
   is_public: boolean;
-  cover_photo_url: string;
+  cover_photo_url: string | null;
+  cover_photo_file?: File | null; // Store the actual file for preview
 }
 
 interface FormErrors {
@@ -44,7 +45,8 @@ const EditTrip: React.FC = () => {
     start_date: '',
     end_date: '',
     is_public: false,
-    cover_photo_url: ''
+    cover_photo_url: '',
+    cover_photo_file: null
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -95,7 +97,8 @@ const EditTrip: React.FC = () => {
         start_date: trip.start_date || '',
         end_date: trip.end_date || '',
         is_public: trip.is_public || false,
-        cover_photo_url: trip.cover_photo_url || ''
+        cover_photo_url: trip.cover_photo_url || '',
+        cover_photo_file: null // No file for existing trips
       };
 
       setFormData(tripData);
@@ -156,26 +159,36 @@ const EditTrip: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFileUpload = (file: File) => {
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      showError('File Too Large', 'File size must be less than 5MB');
-      return;
-    }
+  const handlePhotoUpload = async (file: File) => {
+    if (!file) return;
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      showError('Invalid File Type', 'Please upload a JPG, PNG, or WEBP image');
-      return;
-    }
+    try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showError('Invalid file type', 'Please select an image file');
+        return;
+      }
 
-    // Create preview URL
-    const previewURL = URL.createObjectURL(file);
-    setFormData(prev => ({
-      ...prev,
-      cover_photo_url: previewURL
-    }));
-    
-    showInfo('File Uploaded', 'Cover photo uploaded successfully');
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        showError('File too large', 'Please select an image smaller than 5MB');
+        return;
+      }
+
+      // Proceed directly to upload - any permission issues will be caught by the upload call
+
+      // Store the file for preview (we'll upload it when saving the trip)
+      setFormData(prev => ({
+        ...prev,
+        cover_photo_url: formData.cover_photo_url, // Keep existing URL if any
+        cover_photo_file: file // Store the file for preview
+      }));
+
+      showSuccess('Photo uploaded', 'Cover photo uploaded successfully');
+    } catch (error) {
+      console.error('Upload error:', error);
+      showError('Upload failed', 'Failed to upload image. Please try again.');
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -194,23 +207,32 @@ const EditTrip: React.FC = () => {
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
+      handlePhotoUpload(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      handleFileUpload(e.target.files[0]);
+      handlePhotoUpload(e.target.files[0]);
     }
   };
 
-  const removeCoverPhoto = () => {
-    if (formData.cover_photo_url) {
-      URL.revokeObjectURL(formData.cover_photo_url);
+  const removeCoverPhoto = async () => {
+    if (formData.cover_photo_url && formData.cover_photo_url.startsWith('trip/temp/')) {
+      try {
+        // Remove the temporary file from storage
+        await supabase.storage
+          .from('trip')
+          .remove([formData.cover_photo_url]);
+      } catch (error) {
+        console.error('Error removing temporary photo:', error);
+      }
     }
+    
     setFormData(prev => ({
       ...prev,
-      cover_photo_url: ''
+      cover_photo_url: '',
+      cover_photo_file: null
     }));
   };
 
@@ -241,6 +263,42 @@ const EditTrip: React.FC = () => {
     try {
       showInfo('Saving Changes', 'Updating your trip...');
 
+      // Handle photo upload if there's a new photo file
+      let finalCoverPhotoUrl = formData.cover_photo_url;
+      
+      if (formData.cover_photo_file) {
+        try {
+          // Delete old photo if it exists
+          if (formData.cover_photo_url && !formData.cover_photo_url.startsWith('trip/temp/')) {
+            await supabase.storage
+              .from('trip')
+              .remove([formData.cover_photo_url]);
+          }
+
+          const fileExt = formData.cover_photo_file.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const permanentPath = `trip/${tripId}/${fileName}`;
+
+          console.log('Uploading new photo to permanent location:', permanentPath);
+
+          // Upload the new file to the permanent location
+          const { error: uploadError } = await supabase.storage
+            .from('trip')
+            .upload(permanentPath, formData.cover_photo_file);
+
+          if (uploadError) {
+            console.error('Error uploading new photo:', uploadError);
+            showError('Photo Upload Error', 'Failed to save new cover photo');
+          } else {
+            finalCoverPhotoUrl = permanentPath;
+            console.log('New photo saved successfully to:', permanentPath);
+          }
+        } catch (error) {
+          console.error('Error processing new photo upload:', error);
+          showError('Photo Error', 'Failed to process new cover photo');
+        }
+      }
+
       // Update trip in database
       const { error: updateError } = await supabase
         .from('trips')
@@ -250,7 +308,7 @@ const EditTrip: React.FC = () => {
           start_date: formData.start_date || null,
           end_date: formData.end_date || null,
           is_public: formData.is_public,
-          cover_photo_url: formData.cover_photo_url || null,
+          cover_photo_url: finalCoverPhotoUrl,
           updated_at: new Date().toISOString()
         })
         .eq('id', tripId)
@@ -266,9 +324,9 @@ const EditTrip: React.FC = () => {
       // Update original data to reflect changes
       setOriginalData(formData);
       
-      // Redirect back to trip view after a short delay
+      // Redirect back to my trips page after a short delay
       setTimeout(() => {
-        navigate(`/itinerary/${tripId}/view`);
+        navigate('/my-trips');
       }, 1500);
       
     } catch (error) {
@@ -316,7 +374,7 @@ const EditTrip: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate(`/itinerary/${tripId}/view`)}
+            onClick={() => navigate(`/my-trips`)}
             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -427,50 +485,64 @@ const EditTrip: React.FC = () => {
                 </p>
               </div>
 
-              {/* Cover Photo Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cover Photo <span className="text-gray-500">(optional)</span>
+              {/* Photo Upload Section */}
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  Cover Photo
                 </label>
                 
-                {!formData.cover_photo_url ? (
-                  <div
-                    className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
-                      dragActive 
-                        ? 'border-[#8B5CF6] bg-[#8B5CF6]/10' 
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                  >
+                <div className="flex items-center space-x-4">
+                  {formData.cover_photo_file ? (
+                    <div className="relative">
+                      <img
+                        src={URL.createObjectURL(formData.cover_photo_file)}
+                        alt="Cover preview"
+                        className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeCoverPhoto}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : formData.cover_photo_url ? (
+                    <div className="relative">
+                      <img
+                        src={`${supabase.storage.from('trip').getPublicUrl(formData.cover_photo_url).data.publicUrl}`}
+                        alt="Cover preview"
+                        className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeCoverPhoto}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                      <Camera className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                  
+                  <div className="flex-1">
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handleFileSelect}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handlePhotoUpload(file);
+                      }}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#8B5CF6] file:text-white hover:file:bg-[#7C3AED] transition-colors"
                     />
-                    <Upload className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                    <p className="text-gray-700 mb-2">Drag & Drop or Click to Upload</p>
-                    <p className="text-sm text-gray-500">JPG, PNG, WEBP up to 5MB</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      JPG, PNG or GIF up to 5MB
+                    </p>
                   </div>
-                ) : (
-                  <div className="relative">
-                    <img
-                      src={formData.cover_photo_url}
-                      alt="Cover preview"
-                      className="w-full h-48 object-cover rounded-xl"
-                    />
-                    <button
-                      type="button"
-                      onClick={removeCoverPhoto}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* Privacy Setting */}
@@ -520,9 +592,15 @@ const EditTrip: React.FC = () => {
               <div className="bg-gray-100 rounded-2xl overflow-hidden shadow-xl">
                 {/* Cover Image */}
                 <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative">
-                  {formData.cover_photo_url ? (
+                  {formData.cover_photo_file ? (
                     <img
-                      src={formData.cover_photo_url}
+                      src={URL.createObjectURL(formData.cover_photo_file)}
+                      alt="Trip cover"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : formData.cover_photo_url ? (
+                    <img
+                      src={`${supabase.storage.from('trip').getPublicUrl(formData.cover_photo_url).data.publicUrl}`}
                       alt="Trip cover"
                       className="w-full h-full object-cover"
                     />

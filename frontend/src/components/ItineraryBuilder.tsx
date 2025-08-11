@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import CitySearch from './CitySearch';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   MapPin, 
@@ -12,616 +12,637 @@ import {
   X,
   Save,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  ArrowLeft,
+  Lightbulb,
+  Activity
 } from 'lucide-react';
-
-interface Activity {
-  activityId: string;
-  name: string;
-  time?: string;
-  notes?: string;
-}
-
-interface City {
-  cityId: string;
-  cityName: string;
-  arrivalDate: string;
-  departureDate: string;
-  activities: Activity[];
-  isExpanded: boolean;
-}
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from './Toast';
+import { ItineraryService, TripStop, TripActivity, City } from '../services/itineraryService';
+import { canEditTrip } from '../utils/permissions';
+import TripSuggestions from './TripSuggestions';
 
 interface Trip {
-  tripId: string;
-  tripName: string;
-  startDate: string;
-  endDate: string;
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_public: boolean;
+  cover_photo_url: string | null;
+  currency: string;
+  total_estimated_cost: number | null;
+  metadata: any;
+  created_at: string;
+  updated_at: string;
+  deleted: boolean;
+  trip_type: string;
+  created_by: string | null;
 }
 
 const ItineraryBuilder: React.FC = () => {
-  // Sample trip data - would come from route params in real app
-  const [trip] = useState<Trip>({
-    tripId: "uuid-1234",
-    tripName: "Summer Europe Tour 2025",
-    startDate: "2025-05-12",
-    endDate: "2025-05-25"
-  });
-
-  const [cities, setCities] = useState<City[]>([
-    {
-      cityId: "uuid-paris",
-      cityName: "Paris",
-      arrivalDate: "2025-05-12",
-      departureDate: "2025-05-15",
-      isExpanded: true,
-      activities: [
-        {
-          activityId: "uuid-louvre",
-          name: "Visit the Louvre",
-          time: "10:00",
-          notes: "Buy tickets in advance"
-        },
-        {
-          activityId: "uuid-eiffel",
-          name: "Eiffel Tower Sunset",
-          time: "18:30",
-          notes: ""
-        }
-      ]
-    },
-    {
-      cityId: "uuid-rome",
-      cityName: "Rome",
-      arrivalDate: "2025-05-15",
-      departureDate: "2025-05-20",
-      isExpanded: false,
-      activities: []
-    }
-  ]);
-
+  const { tripId } = useParams<{ tripId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { showSuccess, showError, showInfo } = useToast();
+  
+  const [trip, setTrip] = useState<Trip | null>(null);
+  const [stops, setStops] = useState<TripStop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // Modal states
   const [showCityModal, setShowCityModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showCitySearch, setShowCitySearch] = useState(false);
-  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
-  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+  const [editingActivity, setEditingActivity] = useState<TripActivity | null>(null);
 
-  // City modal form state
+  // Form states
   const [cityForm, setCityForm] = useState({
-    cityName: '',
-    arrivalDate: '',
-    departureDate: ''
+    city_id: '',
+    start_date: '',
+    end_date: '',
+    notes: '',
+    local_transport_cost: '',
+    accommodation_estimate: ''
   });
 
-  // Activity modal form state
   const [activityForm, setActivityForm] = useState({
     name: '',
-    time: '',
+    scheduled_date: '',
+    start_time: '',
+    duration_minutes: '',
+    cost: '',
     notes: ''
   });
 
+  // City search
   const [citySearchQuery, setCitySearchQuery] = useState('');
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [citySearchResults, setCitySearchResults] = useState<City[]>([]);
+  const [citySearchLoading, setCitySearchLoading] = useState(false);
 
-  // Sample city suggestions - would come from Places API
-  const citySuggestions = [
-    'Paris, France',
-    'Rome, Italy',
-    'Barcelona, Spain',
-    'Amsterdam, Netherlands',
-    'Prague, Czech Republic',
-    'Vienna, Austria',
-    'Berlin, Germany',
-    'London, United Kingdom'
-  ].filter(city => 
-    city.toLowerCase().includes(citySearchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    if (tripId && user) {
+      fetchTripData();
+    }
+  }, [tripId, user]);
 
-  const formatDateRange = (arrival: string, departure: string) => {
-    const arrivalDate = new Date(arrival).toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short'
+  const fetchTripData = async () => {
+    try {
+      setLoading(true);
+      const { trip: tripData, stops: stopsData } = await ItineraryService.getTripWithStops(tripId!);
+      
+      // Check permissions
+      if (!canEditTrip(tripData, user)) {
+        showError('Access Denied', 'You do not have permission to edit this trip');
+        navigate('/my-trips');
+        return;
+      }
+
+      setTrip(tripData);
+      setStops(stopsData);
+    } catch (error) {
+      console.error('Error fetching trip data:', error);
+      showError('Error', 'Failed to load trip data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchCities = async (query: string) => {
+    if (query.length < 2) {
+      setCitySearchResults([]);
+      return;
+    }
+
+    try {
+      setCitySearchLoading(true);
+      const results = await ItineraryService.searchCities(query);
+      setCitySearchResults(results);
+    } catch (error) {
+      console.error('Error searching cities:', error);
+    } finally {
+      setCitySearchLoading(false);
+    }
+  };
+
+  const handleAddCity = async () => {
+    try {
+      setSaving(true);
+      
+      const newStop = await ItineraryService.addCityToTrip(tripId!, {
+        city_id: cityForm.city_id,
+        start_date: cityForm.start_date,
+        end_date: cityForm.end_date,
+        notes: cityForm.notes || undefined,
+        local_transport_cost: cityForm.local_transport_cost ? parseFloat(cityForm.local_transport_cost) : undefined,
+        accommodation_estimate: cityForm.accommodation_estimate ? parseFloat(cityForm.accommodation_estimate) : undefined
+      });
+
+      setStops(prev => [...prev, newStop]);
+      setShowCityModal(false);
+      resetCityForm();
+      showSuccess('City Added', 'New city has been added to your trip');
+    } catch (error) {
+      console.error('Error adding city:', error);
+      showError('Error', 'Failed to add city to trip');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateCity = async (stopId: string) => {
+    try {
+      setSaving(true);
+      
+      const updatedStop = await ItineraryService.updateTripStop(stopId, {
+        start_date: cityForm.start_date,
+        end_date: cityForm.end_date,
+        notes: cityForm.notes || undefined,
+        local_transport_cost: cityForm.local_transport_cost ? parseFloat(cityForm.local_transport_cost) : undefined,
+        accommodation_estimate: cityForm.accommodation_estimate ? parseFloat(cityForm.accommodation_estimate) : undefined
+      });
+
+      setStops(prev => prev.map(stop => stop.id === stopId ? updatedStop : stop));
+      setShowCityModal(false);
+      resetCityForm();
+      showSuccess('City Updated', 'City details have been updated');
+    } catch (error) {
+      console.error('Error updating city:', error);
+      showError('Error', 'Failed to update city');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteCity = async (stopId: string) => {
+    if (!confirm('Are you sure you want to delete this city? All activities will also be removed.')) {
+      return;
+    }
+
+    try {
+      await ItineraryService.deleteTripStop(stopId);
+      setStops(prev => prev.filter(stop => stop.id !== stopId));
+      showSuccess('City Deleted', 'City has been removed from your trip');
+    } catch (error) {
+      console.error('Error deleting city:', error);
+      showError('Error', 'Failed to delete city');
+    }
+  };
+
+  const handleAddActivity = async () => {
+    try {
+      setSaving(true);
+      
+      const newActivity = await ItineraryService.addActivityToStop(selectedStopId!, {
+        name: activityForm.name,
+        scheduled_date: activityForm.scheduled_date,
+        start_time: activityForm.start_time || undefined,
+        duration_minutes: activityForm.duration_minutes ? parseInt(activityForm.duration_minutes) : undefined,
+        cost: activityForm.cost ? parseFloat(activityForm.cost) : undefined,
+        notes: activityForm.notes || undefined
+      });
+
+      // Refresh the stops to get updated activity data
+      await fetchTripData();
+      
+      setShowActivityModal(false);
+      resetActivityForm();
+      showSuccess('Activity Added', 'New activity has been added');
+    } catch (error) {
+      console.error('Error adding activity:', error);
+      showError('Error', 'Failed to add activity');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateActivity = async (activityId: string) => {
+    try {
+      setSaving(true);
+      
+      const updatedActivity = await ItineraryService.updateTripActivity(activityId, {
+        name: activityForm.name,
+        scheduled_date: activityForm.scheduled_date,
+        start_time: activityForm.start_time || undefined,
+        duration_minutes: activityForm.duration_minutes ? parseInt(activityForm.duration_minutes) : undefined,
+        cost: activityForm.cost ? parseFloat(activityForm.cost) : undefined,
+        notes: activityForm.notes || undefined
+      });
+
+      // Refresh the stops to get updated activity data
+      await fetchTripData();
+      
+      setShowActivityModal(false);
+      resetActivityForm();
+      showSuccess('Activity Updated', 'Activity has been updated');
+    } catch (error) {
+      console.error('Error updating activity:', error);
+      showError('Error', 'Failed to update activity');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteActivity = async (stopId: string, activityId: string) => {
+    if (!confirm('Are you sure you want to delete this activity?')) {
+      return;
+    }
+
+    try {
+      await ItineraryService.deleteTripActivity(activityId);
+      // Refresh the stops to get updated activity data
+      await fetchTripData();
+      showSuccess('Activity Deleted', 'Activity has been removed');
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      showError('Error', 'Failed to delete activity');
+    }
+  };
+
+  const resetCityForm = () => {
+    setCityForm({
+      city_id: '',
+      start_date: '',
+      end_date: '',
+      notes: '',
+      local_transport_cost: '',
+      accommodation_estimate: ''
     });
-    const departureDate = new Date(departure).toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-    return `${arrivalDate} – ${departureDate}`;
+    setSelectedStopId(null);
   };
 
-  const calculateDays = (arrival: string, departure: string) => {
-    const days = Math.ceil((new Date(departure).getTime() - new Date(arrival).getTime()) / (1000 * 60 * 60 * 24));
-    return days === 1 ? '1 day' : `${days} days`;
-  };
-
-  const validateCityForm = () => {
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!cityForm.cityName.trim()) {
-      newErrors.cityName = 'Please select a city';
-    }
-    if (!cityForm.arrivalDate) {
-      newErrors.arrivalDate = 'Please select arrival date';
-    }
-    if (!cityForm.departureDate) {
-      newErrors.departureDate = 'Please select departure date';
-    }
-    if (cityForm.arrivalDate && cityForm.departureDate && 
-        new Date(cityForm.departureDate) <= new Date(cityForm.arrivalDate)) {
-      newErrors.dateRange = 'Departure date must be after arrival date';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validateActivityForm = () => {
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!activityForm.name.trim()) {
-      newErrors.activityName = 'Please enter activity name';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleAddCity = () => {
-    setShowCitySearch(true);
-  };
-
-  const handleAddCityFromSearch = (city: any, arrivalDate: string, departureDate: string) => {
-    const newCity: City = {
-      cityId: city.cityId,
-      cityName: city.cityName,
-      arrivalDate,
-      departureDate,
-      activities: [],
-      isExpanded: true
-    };
-
-    setCities([...cities, newCity]);
-  };
-
-  const handleDeleteCity = (cityId: string) => {
-    if (window.confirm('Are you sure you want to delete this city and all its activities?')) {
-      setCities(cities.filter(city => city.cityId !== cityId));
-    }
-  };
-
-  const handleAddActivity = () => {
-    if (!validateActivityForm() || !selectedCityId) return;
-
-    const newActivity: Activity = {
-      activityId: `activity-${Date.now()}`,
-      name: activityForm.name,
-      time: activityForm.time || undefined,
-      notes: activityForm.notes || undefined
-    };
-
-    setCities(cities.map(city => 
-      city.cityId === selectedCityId 
-        ? { ...city, activities: [...city.activities, newActivity] }
-        : city
-    ));
-
-    setActivityForm({ name: '', time: '', notes: '' });
-    setShowActivityModal(false);
-    setSelectedCityId(null);
-    setErrors({});
-  };
-
-  const handleEditActivity = (cityId: string, activity: Activity) => {
-    setSelectedCityId(cityId);
-    setEditingActivity(activity);
+  const resetActivityForm = () => {
     setActivityForm({
-      name: activity.name,
-      time: activity.time || '',
-      notes: activity.notes || ''
+      name: '',
+      scheduled_date: '',
+      start_time: '',
+      duration_minutes: '',
+      cost: '',
+      notes: ''
     });
+    setEditingActivity(null);
+    setSelectedStopId(null);
+  };
+
+  const openCityModal = (stop?: TripStop) => {
+    if (stop) {
+      setCityForm({
+        city_id: stop.city_id,
+        start_date: stop.start_date || '',
+        end_date: stop.end_date || '',
+        notes: stop.notes || '',
+        local_transport_cost: stop.local_transport_cost?.toString() || '',
+        accommodation_estimate: stop.accommodation_estimate?.toString() || ''
+      });
+      setSelectedStopId(stop.id);
+    } else {
+      resetCityForm();
+    }
+    setShowCityModal(true);
+  };
+
+  const openActivityModal = (stopId: string, activity?: TripActivity) => {
+    setSelectedStopId(stopId);
+    if (activity) {
+      setActivityForm({
+        name: activity.name,
+        scheduled_date: activity.scheduled_date,
+        start_time: activity.start_time || '',
+        duration_minutes: activity.duration_minutes?.toString() || '',
+        cost: activity.cost?.toString() || '',
+        notes: activity.notes || ''
+      });
+      setEditingActivity(activity);
+    } else {
+      resetActivityForm();
+    }
     setShowActivityModal(true);
   };
 
-  const handleUpdateActivity = () => {
-    if (!validateActivityForm() || !selectedCityId || !editingActivity) return;
-
-    setCities(cities.map(city => 
-      city.cityId === selectedCityId 
-        ? {
-            ...city, 
-            activities: city.activities.map(activity =>
-              activity.activityId === editingActivity.activityId
-                ? {
-                    ...activity,
-                    name: activityForm.name,
-                    time: activityForm.time || undefined,
-                    notes: activityForm.notes || undefined
-                  }
-                : activity
-            )
-          }
-        : city
-    ));
-
-    setActivityForm({ name: '', time: '', notes: '' });
-    setShowActivityModal(false);
-    setSelectedCityId(null);
-    setEditingActivity(null);
-    setErrors({});
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
-  const handleDeleteActivity = (cityId: string, activityId: string) => {
-    if (window.confirm('Are you sure you want to delete this activity?')) {
-      setCities(cities.map(city => 
-        city.cityId === cityId 
-          ? { ...city, activities: city.activities.filter(activity => activity.activityId !== activityId) }
-          : city
-      ));
-    }
+  const calculateDays = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const toggleCityExpansion = (cityId: string) => {
-    setCities(cities.map(city => 
-      city.cityId === cityId 
-        ? { ...city, isExpanded: !city.isExpanded }
-        : city
-    ));
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B5CF6] mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading itinerary...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const handleSaveProgress = async () => {
-    setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      alert('Itinerary saved successfully!');
-    } catch (error) {
-      alert('Error saving itinerary. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (!trip) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-20">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Trip Not Found</h2>
+            <p className="text-gray-600 mb-8">The trip you're looking for doesn't exist or you don't have access to it.</p>
+            <button
+              onClick={() => navigate('/my-trips')}
+              className="bg-[#8B5CF6] text-white px-6 py-3 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors"
+            >
+              Back to My Trips
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Trip Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{trip.tripName}</h1>
-          <p className="text-gray-600">
-            {formatDateRange(trip.startDate, trip.endDate)} • Plan your perfect itinerary
-          </p>
-        </div>
-
-        {/* Add Stop Button */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
         <div className="mb-8">
           <button
-            onClick={handleAddCity}
-            className="bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-[#8B5CF6]/90 hover:to-purple-500/90 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2"
+            onClick={() => navigate('/my-trips')}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
           >
-            <Plus className="h-5 w-5" />
-            <span>Add Stop</span>
+            <ArrowLeft className="h-5 w-5" />
+            <span>Back to My Trips</span>
           </button>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">{trip.name}</h1>
+          <p className="text-gray-600 text-lg">Build your perfect itinerary</p>
         </div>
 
-        {/* Cities Timeline */}
-        <div className="space-y-6">
-          {cities.map((city, index) => (
-            <div key={city.cityId} className="relative">
-              {/* Timeline Line */}
-              {index < cities.length - 1 && (
-                <div className="absolute left-6 top-16 w-0.5 h-20 bg-gray-300 z-0"></div>
-              )}
-
-              {/* City Card */}
-              <div className="bg-white backdrop-blur-sm border border-gray-200 rounded-2xl overflow-hidden shadow-xl">
-                {/* City Header */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      {/* Drag Handle */}
-                      <div className="cursor-move text-gray-500 hover:text-gray-700">
-                        <GripVertical className="h-5 w-5" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Itinerary */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Trip Overview */}
+            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Itinerary</h2>
+                <button
+                  onClick={() => openCityModal()}
+                  className="bg-[#8B5CF6] text-white px-4 py-2 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors flex items-center space-x-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add City</span>
+                </button>
                       </div>
 
-                      {/* City Info */}
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-[#8B5CF6]/20 rounded-full flex items-center justify-center">
-                          <MapPin className="h-6 w-6 text-[#8B5CF6]" />
+              {stops.length === 0 ? (
+                <div className="text-center py-12">
+                  <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Cities Added Yet</h3>
+                  <p className="text-gray-600 mb-6">Start building your itinerary by adding your first destination</p>
+                  <button
+                    onClick={() => openCityModal()}
+                    className="bg-[#8B5CF6] text-white px-6 py-3 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors"
+                  >
+                    Add Your First City
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {stops.map((stop, index) => (
+                    <div
+                      key={stop.id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="bg-[#8B5CF6]/20 p-2 rounded-lg">
+                            <span className="text-[#8B5CF6] font-semibold text-sm">{index + 1}</span>
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-gray-900">{city.cityName}</h3>
+                            <h4 className="font-semibold text-gray-900">
+                              {stop.city?.name || 'Unknown City'}
+                            </h4>
                           <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span>{formatDateRange(city.arrivalDate, city.departureDate)}</span>
-                            <span>•</span>
-                            <span>{calculateDays(city.arrivalDate, city.departureDate)}</span>
+                              <span className="flex items-center space-x-1">
+                                <Calendar className="h-4 w-4" />
+                                <span>
+                                  {stop.start_date && stop.end_date 
+                                    ? `${formatDate(stop.start_date)} - ${formatDate(stop.end_date)}`
+                                    : 'Dates TBD'
+                                  }
+                                </span>
+                              </span>
+                              {stop.start_date && stop.end_date && (
+                                <span className="flex items-center space-x-1">
+                                  <Clock className="h-4 w-4" />
+                                  <span>{calculateDays(stop.start_date, stop.end_date)} days</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* City Actions */}
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => toggleCityExpansion(city.cityId)}
-                        className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => openCityModal(stop)}
+                            className="p-2 text-gray-600 hover:text-[#8B5CF6] transition-colors"
+                            title="Edit City"
                       >
-                        {city.isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                      </button>
-                      <button className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                         <Edit className="h-4 w-4" />
                       </button>
                       <button 
-                        onClick={() => handleDeleteCity(city.cityId)}
-                        className="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => handleDeleteCity(stop.id)}
+                            className="p-2 text-gray-600 hover:text-red-500 transition-colors"
+                            title="Delete City"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                    </div>
                   </div>
                 </div>
 
-                {/* Activities Section */}
-                {city.isExpanded && (
-                  <div className="p-6">
-                    {/* Activities List */}
-                    {city.activities.length > 0 ? (
-                      <div className="space-y-3 mb-4">
-                        {city.activities.map((activity) => (
-                          <div key={activity.activityId} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start space-x-3 flex-1">
-                                <div className="cursor-move text-gray-400 mt-1">
-                                  <GripVertical className="h-4 w-4" />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-3 mb-2">
-                                    <h4 className="font-semibold text-gray-900">{activity.name}</h4>
-                                    {activity.time && (
-                                      <div className="flex items-center space-x-1 text-[#8B5CF6] text-sm">
-                                        <Clock className="h-3 w-3" />
-                                        <span>{activity.time}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {activity.notes && (
-                                    <p className="text-gray-600 text-sm">{activity.notes}</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-1">
+                      {stop.notes && (
+                        <p className="text-sm text-gray-600 mb-3">{stop.notes}</p>
+                      )}
+
+                      {/* Activities */}
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="font-medium text-gray-900">Activities</h5>
                                 <button 
-                                  onClick={() => handleEditActivity(city.cityId, activity)}
-                                  className="p-1 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteActivity(city.cityId, activity.activityId)}
-                                  className="p-1 text-gray-500 hover:text-red-500 hover:bg-gray-200 rounded transition-colors"
-                                >
-                                  <Trash2 className="h-3 w-3" />
+                            onClick={() => openActivityModal(stop.id)}
+                            className="text-[#8B5CF6] hover:text-[#8B5CF6]/80 text-sm font-medium flex items-center space-x-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            <span>Add Activity</span>
                                 </button>
                               </div>
+                        
+                        {/* Activity list would go here - you'll need to fetch activities for each stop */}
+                        <div className="text-sm text-gray-500 italic">
+                          Activities will be displayed here
+                        </div>
                             </div>
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                        <p>No activities planned yet</p>
+              )}
+            </div>
                       </div>
-                    )}
 
-                    {/* Add Activity Button */}
-                    <button
-                      onClick={() => {
-                        setSelectedCityId(city.cityId);
-                        setShowActivityModal(true);
-                      }}
-                      className="w-full bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl py-4 text-gray-500 hover:text-gray-700 hover:border-gray-400 transition-colors flex items-center justify-center space-x-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span>Add Activity</span>
-                    </button>
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Trip Suggestions */}
+            <TripSuggestions onTripCloned={(tripId) => navigate(`/itinerary/${tripId}`)} />
+            
+            {/* Trip Stats */}
+            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Trip Overview</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Cities</span>
+                  <span className="font-medium">{stops.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Duration</span>
+                  <span className="font-medium">
+                    {trip.start_date && trip.end_date 
+                      ? calculateDays(trip.start_date, trip.end_date) + ' days'
+                      : 'TBD'
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Type</span>
+                  <span className="font-medium capitalize">{trip.trip_type}</span>
                   </div>
-                )}
               </div>
             </div>
-          ))}
+          </div>
         </div>
-
-        {/* Empty State */}
-        {cities.length === 0 && (
-          <div className="text-center py-12">
-            <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No stops added yet</h3>
-            <p className="text-gray-600 mb-6">Start building your itinerary by adding your first destination</p>
-            <button
-              onClick={handleAddCity}
-              className="bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-[#8B5CF6]/90 hover:to-purple-500/90 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2 mx-auto"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Add Your First Stop</span>
-            </button>
           </div>
-        )}
-
-        {/* Save Progress Button */}
-        {cities.length > 0 && (
-          <div className="mt-12 text-center">
-            <button
-              onClick={handleSaveProgress}
-              disabled={isLoading}
-              className="bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-[#8B5CF6]/90 hover:to-purple-500/90 transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center space-x-2 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="h-5 w-5" />
-                  <span>Save Progress</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* City Search Modal */}
-        <CitySearch
-          isOpen={showCitySearch}
-          onClose={() => setShowCitySearch(false)}
-          onAddCity={handleAddCityFromSearch}
-          existingCityIds={cities.map(city => city.cityId)}
-        />
 
         {/* City Modal */}
         {showCityModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Add New Stop</h3>
-                <button
-                  onClick={() => {
-                    setShowCityModal(false);
-                    setCityForm({ cityName: '', arrivalDate: '', departureDate: '' });
-                    setCitySearchQuery('');
-                    setErrors({});
-                  }}
-                  className="text-gray-500 hover:text-gray-900"
-                >
-                  <X className="h-6 w-6" />
-                </button>
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-gray-900">
+                {selectedStopId ? 'Edit City' : 'Add New City'}
+              </h3>
               </div>
 
-              <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); selectedStopId ? handleUpdateCity(selectedStopId) : handleAddCity(); }} className="space-y-4">
                 {/* City Search */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     City *
                   </label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
                     <input
                       type="text"
                       value={citySearchQuery}
-                      onChange={(e) => setCitySearchQuery(e.target.value)}
-                      className={`w-full pl-10 pr-4 py-3 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 ${
-                        errors.cityName 
-                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' 
-                          : 'border-gray-300 focus:border-[#42eff5] focus:ring-[#42eff5]/50'
-                      }`}
-                    />
-                  </div>
-                  
-                  {/* City Suggestions */}
-                  {citySearchQuery && citySuggestions.length > 0 && (
-                    <div className="mt-2 bg-white border border-gray-300 rounded-xl max-h-40 overflow-y-auto shadow-lg">
-                      {citySuggestions.map((city, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            setCityForm({ ...cityForm, cityName: city });
-                            setCitySearchQuery('');
-                          }}
-                          className="w-full text-left px-4 py-2 text-gray-900 hover:bg-gray-100 transition-colors first:rounded-t-xl last:rounded-b-xl"
-                        >
-                          {city}
-                        </button>
-                      ))}
+                    onChange={(e) => {
+                      setCitySearchQuery(e.target.value);
+                      searchCities(e.target.value);
+                    }}
+                    placeholder="Search for a city..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                    required
+                  />
+                  {citySearchLoading && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#8B5CF6]"></div>
                     </div>
-                  )}
-                  
-                  {errors.cityName && (
-                    <p className="mt-2 text-sm text-red-400">{errors.cityName}</p>
                   )}
                 </div>
 
-                {/* Selected City Display */}
-                {cityForm.cityName && (
-                  <div className="bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 rounded-xl p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#8B5CF6] font-medium">{cityForm.cityName}</span>
+                {/* City Search Results */}
+                {citySearchResults.length > 0 && (
+                  <div className="mt-2 border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
+                    {citySearchResults.map((city) => (
                       <button
-                        onClick={() => setCityForm({ ...cityForm, cityName: '' })}
-                        className="text-gray-500 hover:text-gray-900"
+                        key={city.id}
+                        type="button"
+                        onClick={() => {
+                          setCityForm(prev => ({ ...prev, city_id: city.id }));
+                          setCitySearchQuery(city.name);
+                          setCitySearchResults([]);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                       >
-                        <X className="h-4 w-4" />
+                        <div className="font-medium">{city.name}</div>
+                        <div className="text-sm text-gray-600">{city.country}</div>
                       </button>
-                    </div>
+                    ))}
                   </div>
                 )}
+              </div>
 
-                {/* Date Inputs */}
-                <div className="grid grid-cols-2 gap-4">
+              {/* Date Range */}
+              <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Arrival *
+                    Start Date
                     </label>
                     <input
                       type="date"
-                      value={cityForm.arrivalDate}
-                      onChange={(e) => setCityForm({ ...cityForm, arrivalDate: e.target.value })}
-                      className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 transition-all duration-300 ${
-                        errors.arrivalDate 
-                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' 
-                          : 'border-gray-300 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50'
-                      }`}
-                    />
-                    {errors.arrivalDate && (
-                      <p className="mt-1 text-xs text-red-400">{errors.arrivalDate}</p>
-                    )}
+                    value={cityForm.start_date}
+                    onChange={(e) => setCityForm(prev => ({ ...prev, start_date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                  />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Departure *
+                    End Date
                     </label>
                     <input
                       type="date"
-                      value={cityForm.departureDate}
-                      onChange={(e) => setCityForm({ ...cityForm, departureDate: e.target.value })}
-                      className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 focus:outline-none focus:ring-2 transition-all duration-300 ${
-                        errors.departureDate 
-                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' 
-                          : 'border-gray-300 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50'
-                      }`}
-                    />
-                    {errors.departureDate && (
-                      <p className="mt-1 text-xs text-red-400">{errors.departureDate}</p>
-                    )}
-                  </div>
+                    value={cityForm.end_date}
+                    onChange={(e) => setCityForm(prev => ({ ...prev, end_date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                  />
+                </div>
                 </div>
 
-                {errors.dateRange && (
-                  <p className="text-sm text-red-400">{errors.dateRange}</p>
-                )}
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  value={cityForm.notes}
+                  onChange={(e) => setCityForm(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300 resize-none"
+                  placeholder="Add notes about this city..."
+                />
+              </div>
 
-                {/* Modal Actions */}
+              {/* Action Buttons */}
                 <div className="flex space-x-3 pt-4">
                   <button
-                    onClick={() => {
-                      setShowCityModal(false);
-                      setCityForm({ cityName: '', arrivalDate: '', departureDate: '' });
-                      setCitySearchQuery('');
-                      setErrors({});
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-300 transition-colors"
+                  type="button"
+                  onClick={() => setShowCityModal(false)}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                  disabled={saving}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddCity}
-                    className="flex-1 bg-[#8B5CF6] text-white py-3 px-4 rounded-xl hover:bg-[#8B5CF6]/90 transition-colors font-semibold"
+                  type="submit"
+                  disabled={saving || !cityForm.city_id}
+                  className="flex-1 bg-[#8B5CF6] text-white py-2 px-4 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Add Stop
+                  {saving ? 'Saving...' : (selectedStopId ? 'Update City' : 'Add City')}
                   </button>
-                </div>
               </div>
-            </div>
+            </form>
+          </div>
           </div>
         )}
 
@@ -629,25 +650,13 @@ const ItineraryBuilder: React.FC = () => {
         {showActivityModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-              <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
                 <h3 className="text-xl font-bold text-gray-900">
-                  {editingActivity ? 'Edit Activity' : 'Add Activity'}
+                {editingActivity ? 'Edit Activity' : 'Add New Activity'}
                 </h3>
-                <button
-                  onClick={() => {
-                    setShowActivityModal(false);
-                    setActivityForm({ name: '', time: '', notes: '' });
-                    setSelectedCityId(null);
-                    setEditingActivity(null);
-                    setErrors({});
-                  }}
-                  className="text-gray-500 hover:text-gray-900"
-                >
-                  <X className="h-6 w-6" />
-                </button>
               </div>
 
-              <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); editingActivity ? handleUpdateActivity(editingActivity.id) : handleAddActivity(); }} className="space-y-4">
                 {/* Activity Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -656,74 +665,107 @@ const ItineraryBuilder: React.FC = () => {
                   <input
                     type="text"
                     value={activityForm.name}
-                    onChange={(e) => setActivityForm({ ...activityForm, name: e.target.value })}
+                  onChange={(e) => setActivityForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
                     placeholder="e.g., Visit the Louvre"
-                    className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 ${
-                      errors.activityName 
-                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' 
-                        : 'border-gray-300 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50'
-                    }`}
-                  />
-                  {errors.activityName && (
-                    <p className="mt-2 text-sm text-red-400">{errors.activityName}</p>
-                  )}
-                </div>
+                  required
+                />
+              </div>
 
-                {/* Time */}
+              {/* Date and Time */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Time (optional)
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={activityForm.scheduled_date}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, scheduled_date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time
                   </label>
                   <input
                     type="time"
-                    value={activityForm.time}
-                    onChange={(e) => setActivityForm({ ...activityForm, time: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:border-[#42eff5] focus:ring-[#42eff5]/50 transition-all duration-300"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                    value={activityForm.start_time}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, start_time: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
                   />
                 </div>
+                </div>
 
-                {/* Notes */}
+              {/* Duration and Cost */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notes (optional)
+                    Duration (minutes)
                   </label>
-                  <textarea
-                    value={activityForm.notes}
-                    onChange={(e) => setActivityForm({ ...activityForm, notes: e.target.value })}
-                    placeholder="Add any notes or reminders..."
-                    rows={3}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#42eff5] focus:ring-[#42eff5]/50 transition-all duration-300 resize-none"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300 resize-none"
+                  <input
+                    type="number"
+                    value={activityForm.duration_minutes}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, duration_minutes: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                    placeholder="120"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cost
+                  </label>
+                  <input
+                    type="number"
+                    value={activityForm.cost}
+                    onChange={(e) => setActivityForm(prev => ({ ...prev, cost: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                    placeholder="25.00"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  value={activityForm.notes}
+                  onChange={(e) => setActivityForm(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300 resize-none"
+                  placeholder="Add details about this activity..."
                   />
                 </div>
 
-                {/* Modal Actions */}
+              {/* Action Buttons */}
                 <div className="flex space-x-3 pt-4">
                   <button
-                    onClick={() => {
-                      setShowActivityModal(false);
-                      setActivityForm({ name: '', time: '', notes: '' });
-                      setSelectedCityId(null);
-                      setEditingActivity(null);
-                      setErrors({});
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-300 transition-colors"
+                  type="button"
+                  onClick={() => setShowActivityModal(false)}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                  disabled={saving}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={editingActivity ? handleUpdateActivity : handleAddActivity}
-                    className="flex-1 bg-[#8B5CF6] text-white py-3 px-4 rounded-xl hover:bg-[#8B5CF6]/90 transition-colors font-semibold"
+                  type="submit"
+                  disabled={saving || !activityForm.name || !activityForm.scheduled_date}
+                  className="flex-1 bg-[#8B5CF6] text-white py-2 px-4 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {editingActivity ? 'Update Activity' : 'Add Activity'}
+                  {saving ? 'Saving...' : (editingActivity ? 'Update Activity' : 'Add Activity')}
                   </button>
-                </div>
               </div>
-            </div>
+            </form>
+          </div>
           </div>
         )}
-      </div>
     </div>
   );
 };

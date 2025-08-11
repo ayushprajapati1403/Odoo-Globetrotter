@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
   Clock, 
@@ -13,243 +14,143 @@ import {
   ChevronRight,
   Search,
   Filter,
-  Share2
+  Share2,
+  ArrowLeft,
+  Edit,
+  Activity
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from './Toast';
+import { ItineraryService, TripStop, TripActivity } from '../services/itineraryService';
+import { canEditTrip } from '../utils/permissions';
 
-interface Activity {
-  activityId: string;
-  time?: string;
+interface Trip {
+  id: string;
+  user_id: string;
   name: string;
-  cost?: number;
-  currency?: string;
-  description?: string;
-  isPhotoSpot?: boolean;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_public: boolean;
+  cover_photo_url: string | null;
+  currency: string;
+  total_estimated_cost: number | null;
+  metadata: any;
+  created_at: string;
+  updated_at: string;
+  deleted: boolean;
+  trip_type: string;
+  created_by: string | null;
 }
 
 interface Day {
-  dayLabel: string;
   date: string;
   weekday: string;
-  activities: Activity[];
-}
-
-interface City {
-  cityId: string;
-  cityName: string;
-  arrivalDate: string;
-  departureDate: string;
-  days: Day[];
-}
-
-interface Trip {
-  tripId: string;
-  tripName: string;
-  startDate: string;
-  endDate: string;
-  coverPhotoURL?: string;
-  itinerary: City[];
+  activities: TripActivity[];
 }
 
 type ViewMode = 'list' | 'calendar';
 
 const ItineraryView: React.FC = () => {
-  // Sample data - would come from API in real app
-  const [trip] = useState<Trip>({
-    tripId: "uuid-1234",
-    tripName: "Europe Summer Tour 2025",
-    startDate: "2025-05-12",
-    endDate: "2025-05-25",
-    coverPhotoURL: "https://images.pexels.com/photos/161815/santorini-oia-greece-water-161815.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop",
-    itinerary: [
-      {
-        cityId: "paris",
-        cityName: "Paris",
-        arrivalDate: "2025-05-12",
-        departureDate: "2025-05-15",
-        days: [
-          {
-            dayLabel: "Day 1",
-            date: "2025-05-12",
-            weekday: "Monday",
-            activities: [
-              {
-                activityId: "louvre",
-                time: "10:00",
-                name: "Visit the Louvre",
-                cost: 17,
-                currency: "EUR",
-                description: "Buy tickets online to skip the queue. World's largest art museum.",
-                isPhotoSpot: true
-              },
-              {
-                activityId: "lunch-cafe",
-                time: "13:00",
-                name: "Lunch at Café de Flore",
-                cost: 35,
-                currency: "EUR",
-                description: "Historic café in Saint-Germain-des-Prés"
-              },
-              {
-                activityId: "eiffel",
-                time: "18:30",
-                name: "Eiffel Tower Sunset",
-                cost: 25,
-                currency: "EUR",
-                description: "Best views from Trocadéro Gardens",
-                isPhotoSpot: true
-              }
-            ]
-          },
-          {
-            dayLabel: "Day 2",
-            date: "2025-05-13",
-            weekday: "Tuesday",
-            activities: [
-              {
-                activityId: "versailles",
-                time: "09:00",
-                name: "Palace of Versailles",
-                cost: 20,
-                currency: "EUR",
-                description: "Take RER C train from central Paris. Allow full day.",
-                isPhotoSpot: true
-              }
-            ]
-          },
-          {
-            dayLabel: "Day 3",
-            date: "2025-05-14",
-            weekday: "Wednesday",
-            activities: [
-              {
-                activityId: "montmartre",
-                time: "10:00",
-                name: "Montmartre & Sacré-Cœur",
-                cost: 0,
-                currency: "EUR",
-                description: "Free to visit. Take funicular or walk up the steps.",
-                isPhotoSpot: true
-              },
-              {
-                activityId: "seine-cruise",
-                time: "16:00",
-                name: "Seine River Cruise",
-                cost: 15,
-                currency: "EUR",
-                description: "1-hour cruise with audio guide"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        cityId: "rome",
-        cityName: "Rome",
-        arrivalDate: "2025-05-15",
-        departureDate: "2025-05-20",
-        days: [
-          {
-            dayLabel: "Day 1",
-            date: "2025-05-15",
-            weekday: "Thursday",
-            activities: [
-              {
-                activityId: "colosseum",
-                time: "14:00",
-                name: "Colosseum & Roman Forum",
-                cost: 16,
-                currency: "EUR",
-                description: "Skip-the-line tickets included. Allow 3-4 hours.",
-                isPhotoSpot: true
-              }
-            ]
-          },
-          {
-            dayLabel: "Day 2",
-            date: "2025-05-16",
-            weekday: "Friday",
-            activities: [
-              {
-                activityId: "vatican",
-                time: "09:00",
-                name: "Vatican Museums & Sistine Chapel",
-                cost: 20,
-                currency: "EUR",
-                description: "Early morning entry to avoid crowds",
-                isPhotoSpot: true
-              },
-              {
-                activityId: "trevi",
-                time: "15:00",
-                name: "Trevi Fountain & Spanish Steps",
-                cost: 0,
-                currency: "EUR",
-                description: "Free attractions. Best photos in late afternoon.",
-                isPhotoSpot: true
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  });
-
+  const { tripId } = useParams<{ tripId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
+  
+  const [trip, setTrip] = useState<Trip | null>(null);
+  const [stops, setStops] = useState<TripStop[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTooltip, setSelectedTooltip] = useState<string | null>(null);
-  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date(trip.startDate));
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tripId && user) {
+      fetchTripData();
+    }
+  }, [tripId, user]);
+
+  const fetchTripData = async () => {
+    try {
+      setLoading(true);
+      const { trip: tripData, stops: stopsData } = await ItineraryService.getTripWithStops(tripId!);
+      
+      // Check if user can view this trip
+      if (!canEditTrip(tripData, user) && !tripData.is_public) {
+        showError('Access Denied', 'You do not have permission to view this trip');
+        navigate('/my-trips');
+        return;
+      }
+
+      setTrip(tripData);
+      setStops(stopsData);
+      
+      // Set selected date to first day of trip
+      if (tripData.start_date) {
+        setSelectedDate(tripData.start_date);
+      }
+    } catch (error) {
+      console.error('Error fetching trip data:', error);
+      showError('Error', 'Failed to load trip data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      day: 'numeric',
+      weekday: 'long',
+      year: 'numeric',
       month: 'long',
-      year: 'numeric'
+      day: 'numeric'
     });
   };
 
-  const formatDateRange = (start: string, end: string) => {
-    const startDate = new Date(start).toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short'
-    });
-    const endDate = new Date(end).toLocaleDateString('en-US', {
-      day: 'numeric',
+  const formatDateShort = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
-      year: 'numeric'
+      day: 'numeric'
     });
-    return `${startDate} – ${endDate}`;
+  };
+
+  const formatTime = (timeString: string) => {
+    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const formatCurrency = (amount: number, currency: string) => {
-    const symbols: { [key: string]: string } = {
-      'EUR': '€',
-      'USD': '$',
-      'GBP': '£'
-    };
-    return `${symbols[currency] || currency}${amount}`;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD'
+    }).format(amount);
   };
 
   const getTotalCost = () => {
     let total = 0;
-    let currency = 'EUR';
-    
-    trip.itinerary.forEach(city => {
-      city.days.forEach(day => {
-        day.activities.forEach(activity => {
-          if (activity.cost) {
-            total += activity.cost;
-            currency = activity.currency || currency;
-          }
-        });
-      });
+    stops.forEach(stop => {
+      // Add local transport and accommodation costs
+      if (stop.local_transport_cost) total += stop.local_transport_cost;
+      if (stop.accommodation_estimate) total += stop.accommodation_estimate;
+      
+      // Add activity costs (this would need to be fetched separately)
+      // For now, we'll just show the basic costs
     });
-    
-    return { total, currency };
+    return total;
+  };
+
+  const getActivitiesForDate = (date: string): TripActivity[] => {
+    const activities: TripActivity[] = [];
+    stops.forEach(stop => {
+      // This is a simplified approach - in a real app you'd fetch activities for each stop
+      // For now, we'll return empty array
+    });
+    return activities;
   };
 
   const handleExportPDF = () => {
-    // In real app, this would generate a PDF
-    alert('PDF export functionality would be implemented here');
+    showError('Not Implemented', 'PDF export will be available soon');
   };
 
   const handlePrint = () => {
@@ -259,128 +160,97 @@ const ItineraryView: React.FC = () => {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: trip.tripName,
-        text: `Check out my ${trip.tripName} itinerary!`,
+        title: trip?.name || 'My Trip',
+        text: `Check out my trip: ${trip?.name}`,
         url: window.location.href
       });
     } else {
-      // Fallback - copy to clipboard
+      // Fallback to copying URL
       navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
+      showSuccess('Link Copied', 'Trip link has been copied to clipboard');
     }
   };
 
-  const filteredItinerary = trip.itinerary.map(city => ({
-    ...city,
-    days: city.days.map(day => ({
-      ...day,
-      activities: day.activities.filter(activity =>
-        activity.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (activity.description && activity.description.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    })).filter(day => day.activities.length > 0)
-  })).filter(city => city.days.length > 0);
-
   const renderListView = () => (
-    <div className="space-y-8">
-      {filteredItinerary.map((city, cityIndex) => (
-        <div key={city.cityId} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* City Header */}
-          <div className="bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">{city.cityName}</h2>
-                <p className="text-purple-100">
-                  {formatDateRange(city.arrivalDate, city.departureDate)}
-                </p>
+    <div className="space-y-6">
+      {stops.map((stop, index) => (
+        <div key={stop.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-[#8B5CF6]/20 p-3 rounded-lg">
+                <span className="text-[#8B5CF6] font-semibold text-lg">{index + 1}</span>
               </div>
-              <div className="text-right">
-                <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                  <MapPin className="h-6 w-6 mb-1" />
-                  <div className="text-sm font-medium">
-                    {city.days.length} {city.days.length === 1 ? 'day' : 'days'}
-                  </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {stop.city?.name || 'Unknown City'}
+                </h3>
+                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <span className="flex items-center space-x-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>
+                      {stop.start_date && stop.end_date 
+                        ? `${formatDateShort(stop.start_date)} - ${formatDateShort(stop.end_date)}`
+                        : 'Dates TBD'
+                      }
+                    </span>
+                  </span>
+                  {stop.start_date && stop.end_date && (
+                    <span className="flex items-center space-x-1">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        {Math.ceil((new Date(stop.end_date).getTime() - new Date(stop.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
+                      </span>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
+            
+            {canEditTrip(trip!, user) && (
+              <button
+                onClick={() => navigate(`/itinerary/${tripId}`)}
+                className="bg-[#8B5CF6] text-white px-4 py-2 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors flex items-center space-x-2"
+              >
+                <Edit className="h-4 w-4" />
+                <span>Edit</span>
+              </button>
+            )}
           </div>
 
-          {/* Days */}
-          <div className="p-6">
-            {city.days.map((day, dayIndex) => (
-              <div key={`${city.cityId}-${day.date}`} className={`${dayIndex > 0 ? 'mt-8' : ''}`}>
-                {/* Day Header */}
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-[#8B5CF6]/20 rounded-full p-2">
-                    <Calendar className="h-5 w-5 text-[#8B5CF6]" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">
-                      {day.dayLabel} – {formatDate(day.date)}
-                    </h3>
-                    <p className="text-gray-600 text-sm">{day.weekday}</p>
-                  </div>
-                </div>
+          {stop.notes && (
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-gray-700">{stop.notes}</p>
+            </div>
+          )}
 
-                {/* Activities */}
-                <div className="space-y-3 ml-10">
-                  {day.activities.map((activity, activityIndex) => (
-                    <div 
-                      key={activity.activityId}
-                      className={`bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow ${
-                        activityIndex % 2 === 1 ? 'bg-gray-100/50' : ''
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            {activity.time && (
-                              <div className="flex items-center space-x-1 text-[#8B5CF6] text-sm font-medium">
-                                <Clock className="h-4 w-4" />
-                                <span>{activity.time}</span>
-                              </div>
-                            )}
-                            <h4 className="font-semibold text-gray-900">{activity.name}</h4>
-                            {activity.isPhotoSpot && (
-                              <Camera className="h-4 w-4 text-orange-500" title="Photo spot" />
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center space-x-4">
-                            {activity.cost !== undefined && (
-                              <span className="text-green-600 font-medium">
-                                {activity.cost === 0 ? 'Free' : formatCurrency(activity.cost, activity.currency || 'EUR')}
-                              </span>
-                            )}
-                            
-                            {activity.description && (
-                              <div className="relative">
-                                <button
-                                  onClick={() => setSelectedTooltip(
-                                    selectedTooltip === activity.activityId ? null : activity.activityId
-                                  )}
-                                  className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 text-sm"
-                                >
-                                  <Info className="h-4 w-4" />
-                                  <span>Info</span>
-                                </button>
-                                
-                                {selectedTooltip === activity.activityId && (
-                                  <div className="absolute top-full left-0 mt-2 bg-gray-900 text-white p-3 rounded-lg shadow-xl z-10 max-w-xs">
-                                    <p className="text-sm">{activity.description}</p>
-                                    <div className="absolute -top-1 left-4 w-2 h-2 bg-gray-900 transform rotate-45"></div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+          {/* Cost Summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            {stop.local_transport_cost && (
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-sm text-gray-600">Local Transport</div>
+                <div className="text-lg font-semibold text-blue-600">
+                  {formatCurrency(stop.local_transport_cost, trip?.currency || 'USD')}
                 </div>
               </div>
-            ))}
+            )}
+            {stop.accommodation_estimate && (
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-sm text-gray-600">Accommodation</div>
+                <div className="text-lg font-semibold text-green-600">
+                  {formatCurrency(stop.accommodation_estimate, trip?.currency || 'USD')}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Activities placeholder */}
+          <div className="border-t border-gray-200 pt-4">
+            <h4 className="font-medium text-gray-900 mb-3">Activities</h4>
+            <div className="text-center py-8 text-gray-500">
+              <Activity className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+              <p>Activities will be displayed here</p>
+              <p className="text-sm">Use the itinerary builder to add activities</p>
+            </div>
           </div>
         </div>
       ))}
@@ -388,149 +258,213 @@ const ItineraryView: React.FC = () => {
   );
 
   const renderCalendarView = () => (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-      <div className="text-center py-12">
-        <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Calendar View</h3>
-        <p className="text-gray-600">Calendar view implementation would go here</p>
-        <p className="text-sm text-gray-500 mt-2">
-          This would show activities in a calendar grid format, color-coded by city
-        </p>
+    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+      <div className="text-center mb-6">
+        <h3 className="text-lg font-semibold text-gray-900">Calendar View</h3>
+        <p className="text-gray-600">Calendar view will be available soon</p>
       </div>
     </div>
   );
 
-  const { total: totalCost, currency } = getTotalCost();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B5CF6] mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading itinerary...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!trip) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-20">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Trip Not Found</h2>
+            <p className="text-gray-600 mb-8">The trip you're looking for doesn't exist or you don't have access to it.</p>
+            <button
+              onClick={() => navigate('/my-trips')}
+              className="bg-[#8B5CF6] text-white px-6 py-3 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors"
+            >
+              Back to My Trips
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+          <button
+            onClick={() => navigate('/my-trips')}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>Back to My Trips</span>
+          </button>
+          
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">{trip.tripName}</h1>
-              <p className="text-gray-600 text-lg">
-                {formatDateRange(trip.startDate, trip.endDate)} • {trip.itinerary.length} cities
-              </p>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-3 mt-4 lg:mt-0">
-              {/* View Toggle */}
-              <div className="bg-gray-200 rounded-lg p-1 flex">
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'list' 
-                      ? 'bg-white text-[#8B5CF6] shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <List className="h-4 w-4" />
-                  <span>List</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('calendar')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'calendar' 
-                      ? 'bg-white text-[#8B5CF6] shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                  <span>Calendar</span>
-                </button>
-              </div>
-
-              {/* Export Buttons */}
-              <button
-                onClick={handleShare}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                <Share2 className="h-4 w-4" />
-                <span>Share</span>
-              </button>
-              
-              <button
-                onClick={handleExportPDF}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#8B5CF6]/90 transition-colors"
-              >
-                <Download className="h-4 w-4" />
-                <span>Export PDF</span>
-              </button>
-              
-              <button
-                onClick={handlePrint}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                <Printer className="h-4 w-4" />
-                <span>Print</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Trip Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-[#8B5CF6]">{trip.itinerary.length}</div>
-              <div className="text-gray-600 text-sm">Cities</div>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-[#8B5CF6]">
-                {trip.itinerary.reduce((total, city) => total + city.days.length, 0)}
-              </div>
-              <div className="text-gray-600 text-sm">Days</div>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-[#8B5CF6]">
-                {trip.itinerary.reduce((total, city) => 
-                  total + city.days.reduce((dayTotal, day) => dayTotal + day.activities.length, 0), 0
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">{trip.name}</h1>
+              {trip.description && (
+                <p className="text-gray-600 text-lg mb-2">{trip.description}</p>
+              )}
+              <div className="flex items-center space-x-4 text-sm text-gray-600">
+                <span className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>
+                    {trip.start_date && trip.end_date 
+                      ? `${formatDateShort(trip.start_date)} - ${formatDateShort(trip.end_date)}`
+                      : 'Dates TBD'
+                    }
+                  </span>
+                </span>
+                {trip.start_date && trip.end_date && (
+                  <span className="flex items-center space-x-1">
+                    <Clock className="h-4 w-4" />
+                    <span>
+                      {Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
+                    </span>
+                  </span>
                 )}
               </div>
-              <div className="text-gray-600 text-sm">Activities</div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalCost, currency)}
-              </div>
-              <div className="text-gray-600 text-sm">Total Cost</div>
+
+            <div className="flex items-center space-x-3 mt-4 lg:mt-0">
+              {canEditTrip(trip, user) && (
+                <button
+                  onClick={() => navigate(`/itinerary/${tripId}`)}
+                  className="bg-[#8B5CF6] text-white px-4 py-2 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors flex items-center space-x-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span>Edit Itinerary</span>
+                </button>
+              )}
             </div>
           </div>
+        </div>
 
-          {/* Search Bar */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search activities..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
-            />
+        {/* Trip Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <div className="bg-[#8B5CF6]/20 p-3 rounded-xl">
+                <MapPin className="h-6 w-6 text-[#8B5CF6]" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">{stops.length}</div>
+                <div className="text-gray-600 text-sm">Cities</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-500/20 p-3 rounded-xl">
+                <Calendar className="h-6 w-6 text-green-500" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {trip.start_date && trip.end_date 
+                    ? Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24))
+                    : 'TBD'
+                  }
+                </div>
+                <div className="text-gray-600 text-sm">Days</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-500/20 p-3 rounded-xl">
+                <Clock className="h-6 w-6 text-blue-500" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">0</div>
+                <div className="text-gray-600 text-sm">Activities</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <div className="bg-[#8B5CF6]/20 p-3 rounded-xl">
+                <span className="text-2xl font-bold text-[#8B5CF6]">$</span>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(getTotalCost(), trip.currency || 'USD').replace('$', '')}
+                </div>
+                <div className="text-gray-600 text-sm">Total Cost</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-[#8B5CF6] text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <List className="h-4 w-4 inline mr-2" />
+              List View
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'calendar'
+                  ? 'bg-[#8B5CF6] text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <Grid3X3 className="h-4 w-4 inline mr-2" />
+              Calendar View
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleShare}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors flex items-center space-x-2"
+            >
+              <Share2 className="h-4 w-4" />
+              <span>Share</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors flex items-center space-x-2"
+            >
+              <Printer className="h-4 w-4" />
+              <span>Print</span>
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors flex items-center space-x-2"
+            >
+              <Download className="h-4 w-4" />
+              <span>Export</span>
+            </button>
           </div>
         </div>
 
         {/* Content */}
         {viewMode === 'list' ? renderListView() : renderCalendarView()}
-
-        {/* Empty State for Search */}
-        {searchQuery && filteredItinerary.length === 0 && (
-          <div className="text-center py-12">
-            <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No activities found</h3>
-            <p className="text-gray-600">Try adjusting your search terms</p>
-          </div>
-        )}
       </div>
-
-      {/* Click outside to close tooltips */}
-      {selectedTooltip && (
-        <div 
-          className="fixed inset-0 z-0" 
-          onClick={() => setSelectedTooltip(null)}
-        />
-      )}
     </div>
   );
 };

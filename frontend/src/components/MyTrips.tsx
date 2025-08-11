@@ -29,6 +29,7 @@ import {
   getTripRole,
   isAdmin 
 } from '../utils/permissions';
+import TripSuggestions from './TripSuggestions';
 
 interface SortOption {
   value: string;
@@ -536,7 +537,7 @@ const MyTrips: React.FC = () => {
                   <div className="relative h-48 overflow-hidden">
                     {trip.cover_photo_url ? (
                       <img
-                        src={trip.cover_photo_url}
+                        src={`${supabase.storage.from('trip').getPublicUrl(trip.cover_photo_url).data.publicUrl}`}
                         alt={trip.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         loading="lazy"
@@ -565,11 +566,11 @@ const MyTrips: React.FC = () => {
                     {/* Quick Actions Overlay */}
                     <div className="absolute bottom-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <button 
-                        onClick={() => navigate(`/itinerary/${trip.id}/view`)}
+                        onClick={() => navigate(`/itinerary/${trip.id}`)}
                         className="bg-white/90 backdrop-blur-sm text-gray-900 p-2 rounded-full hover:bg-[#42eff5] hover:text-white transition-colors"
-                        title="View Trip"
+                        title="Edit Itinerary"
                       >
-                        <Eye className="h-4 w-4" />
+                        <MapPin className="h-4 w-4" />
                       </button>
                       {canEditTripLocal(trip) && (
                         <button 
@@ -621,10 +622,10 @@ const MyTrips: React.FC = () => {
                     {/* Action Buttons */}
                     <div className="flex space-x-2">
                       <button 
-                        onClick={() => navigate(`/itinerary/${trip.id}/view`)}
+                        onClick={() => navigate(`/itinerary/${trip.id}`)}
                         className="flex-1 bg-[#8B5CF6] text-white py-2 px-4 rounded-lg font-medium hover:bg-[#8B5CF6]/90 transition-colors text-sm"
                       >
-                        View Trip
+                        Edit Itinerary
                       </button>
                       {canEditTripLocal(trip) && (
                         <button 
@@ -673,6 +674,14 @@ const MyTrips: React.FC = () => {
         )}
 
 
+
+        {/* Trip Suggestions */}
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <TripSuggestions onTripCloned={(tripId) => {
+            showSuccess('Trip Cloned!', 'Your new trip has been created successfully');
+            fetchTrips(); // Refresh the trips list
+          }} />
+        </div>
 
         {/* Developer Tools */}
         <div className="mt-8 pt-8 border-t border-gray-200">
