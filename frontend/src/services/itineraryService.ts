@@ -32,6 +32,7 @@ export interface TripStop {
   created_at: string;
   updated_at: string;
   city?: City; // Joined city data
+  activities?: TripActivity[]; // Activities for this stop
 }
 
 export interface Activity {
@@ -113,7 +114,29 @@ export class ItineraryService {
 
       if (stopsError) throw stopsError;
 
-      return { trip, stops: stops || [] };
+      // Get activities for each stop
+      const stopsWithActivities = await Promise.all(
+        (stops || []).map(async (stop) => {
+          const { data: activities, error: activitiesError } = await supabase
+            .from('trip_activities')
+            .select(`
+              *,
+              activity:activities(*)
+            `)
+            .eq('trip_stop_id', stop.id)
+            .order('scheduled_date', { ascending: true })
+            .order('start_time', { ascending: true });
+
+          if (activitiesError) {
+            console.error('Error fetching activities for stop:', activitiesError);
+            return { ...stop, activities: [] };
+          }
+
+          return { ...stop, activities: activities || [] };
+        })
+      );
+
+      return { trip, stops: stopsWithActivities };
     } catch (error) {
       console.error('Error fetching trip with stops:', error);
       throw error;
@@ -160,10 +183,26 @@ export class ItineraryService {
     start_date: string;
     end_date: string;
     notes?: string;
-    local_transport_cost?: number;
-    accommodation_estimate?: number;
   }) {
     try {
+      // Validate required fields
+      if (!cityData.city_id) {
+        throw new Error('City ID is required');
+      }
+      if (!cityData.start_date) {
+        throw new Error('Start date is required');
+      }
+      if (!cityData.end_date) {
+        throw new Error('End date is required');
+      }
+
+      // Validate date logic
+      const startDate = new Date(cityData.start_date);
+      const endDate = new Date(cityData.end_date);
+      if (endDate < startDate) {
+        throw new Error('End date must be after start date');
+      }
+
       // Get current max sequence number
       const { data: maxSeq, error: seqError } = await supabase
         .from('trip_stops')
@@ -172,6 +211,10 @@ export class ItineraryService {
         .order('seq', { ascending: false })
         .limit(1)
         .single();
+
+      if (seqError && seqError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        throw new Error(`Failed to get sequence number: ${seqError.message}`);
+      }
 
       const nextSeq = (maxSeq?.seq || 0) + 1;
 
@@ -185,16 +228,29 @@ export class ItineraryService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('This city is already added to the trip');
+        } else if (error.code === '23503') {
+          throw new Error('Invalid city ID or trip ID');
+        } else {
+          throw new Error(`Database error: ${error.message}`);
+        }
+      }
+      
       return stop;
     } catch (error) {
       console.error('Error adding city to trip:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error('An unexpected error occurred while adding the city');
+      }
     }
   }
 
   // Update trip stop
-  static async updateTripStop(stopId: string, updates: Partial<TripStop>) {
+  static async updateTripStop(stopId: string, updates: Partial<Pick<TripStop, 'start_date' | 'end_date' | 'notes'>>) {
     try {
       const { data, error } = await supabase
         .from('trip_stops')
@@ -260,35 +316,107 @@ export class ItineraryService {
 
   // Add activity to trip stop
   static async addActivityToStop(stopId: string, activityData: {
-    activity_id?: string;
-    name: string;
+    activity_id: string;
     scheduled_date: string;
     start_time?: string;
     duration_minutes?: number;
-    cost?: number;
     notes?: string;
   }) {
     try {
+      // Validate required fields
+      if (!activityData.activity_id) {
+        throw new Error('Activity ID is required');
+      }
+      if (!activityData.scheduled_date) {
+        throw new Error('Scheduled date is required');
+      }
+
+      // Validate date logic
+      const scheduledDate = new Date(activityData.scheduled_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (scheduledDate < today) {
+        throw new Error('Scheduled date cannot be in the past');
+      }
+
+      // Validate duration if provided
+      if (activityData.duration_minutes !== undefined) {
+        if (activityData.duration_minutes <= 0) {
+          throw new Error('Duration must be a positive number');
+        }
+        if (activityData.duration_minutes > 1440) {
+          throw new Error('Duration cannot exceed 24 hours');
+        }
+      }
+
+      // Get the activity details to populate the name and cost
+      const { data: activity, error: activityError } = await supabase
+        .from('activities')
+        .select('name, cost')
+        .eq('id', activityData.activity_id)
+        .eq('deleted', false)
+        .single();
+
+      if (activityError) {
+        if (activityError.code === 'PGRST116') {
+          throw new Error('Selected activity not found or has been deleted');
+        }
+        throw new Error(`Failed to get activity details: ${activityError.message}`);
+      }
+
       const { data, error } = await supabase
         .from('trip_activities')
         .insert({
           trip_stop_id: stopId,
-          ...activityData
+          activity_id: activityData.activity_id,
+          name: activity.name,
+          cost: activity.cost,
+          scheduled_date: activityData.scheduled_date,
+          start_time: activityData.start_time,
+          duration_minutes: activityData.duration_minutes,
+          notes: activityData.notes
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('This activity is already scheduled for this time');
+        } else if (error.code === '23503') {
+          throw new Error('Invalid activity ID or trip stop ID');
+        } else {
+          throw new Error(`Database error: ${error.message}`);
+        }
+      }
+      
       return data;
     } catch (error) {
       console.error('Error adding activity to stop:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error('An unexpected error occurred while adding the activity');
+      }
     }
   }
 
   // Update trip activity
   static async updateTripActivity(activityId: string, updates: Partial<TripActivity>) {
     try {
+      // If activity_id is being updated, get the new activity details
+      if (updates.activity_id) {
+        const { data: activity, error: activityError } = await supabase
+          .from('activities')
+          .select('name, cost')
+          .eq('id', updates.activity_id)
+          .single();
+
+        if (activityError) throw activityError;
+
+        updates.name = activity.name;
+        updates.cost = activity.cost;
+      }
+
       const { data, error } = await supabase
         .from('trip_activities')
         .update({
