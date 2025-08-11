@@ -23,6 +23,7 @@ import { ItineraryService, TripStop, TripActivity, City, Activity } from '../ser
 import { canEditTrip } from '../utils/permissions';
 import TripSuggestions from './TripSuggestions';
 import TransportDetails from './TransportDetails';
+import AccommodationDetails from './AccommodationDetails';
 
 interface Trip {
   id: string;
@@ -909,6 +910,28 @@ const ItineraryBuilder: React.FC = () => {
                 />
               </div>
             )}
+
+            {/* Accommodation Details */}
+            {stops.length > 1 && (
+              <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <AccommodationDetails
+                  tripId={tripId!}
+                  stops={stops}
+                  onAccommodationAdded={() => {
+                    // Refresh trip data if needed
+                    fetchTripData();
+                  }}
+                  onAccommodationUpdated={() => {
+                    // Refresh trip data if needed
+                    fetchTripData();
+                  }}
+                  onAccommodationDeleted={() => {
+                    // Refresh trip data if needed
+                    fetchTripData();
+                  }}
+                />
+              </div>
+            )}
                       </div>
 
           {/* Sidebar */}
@@ -936,7 +959,20 @@ const ItineraryBuilder: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Type</span>
                   <span className="font-medium capitalize">{trip.trip_type}</span>
-                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Activities</span>
+                  <span className="font-medium">
+                    {stops.reduce((total, stop) => total + (stop.activities?.length || 0), 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Accommodations</span>
+                  <span className="font-medium">
+                    {/* This will be populated when we fetch accommodations */}
+                    -
+                  </span>
+                </div>
               </div>
             </div>
           </div>

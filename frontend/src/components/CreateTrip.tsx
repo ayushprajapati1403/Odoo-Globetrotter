@@ -9,7 +9,8 @@ import {
   Camera,
   FileText,
   Plane,
-  Plus
+  Plus,
+  DollarSign
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +25,7 @@ interface TripFormData {
   is_public: boolean;
   cover_photo_url: string | null;
   cover_photo_file?: File | null; // Store the actual file for preview
+  budget: number | ''; // Add budget field
 }
 
 interface FormErrors {
@@ -31,6 +33,7 @@ interface FormErrors {
   start_date?: string;
   end_date?: string;
   dateRange?: string;
+  budget?: string;
 }
 
 const CreateTrip: React.FC = () => {
@@ -45,7 +48,8 @@ const CreateTrip: React.FC = () => {
     end_date: '',
     is_public: false,
     cover_photo_url: null,
-    cover_photo_file: null
+    cover_photo_file: null,
+    budget: '' // Initialize budget
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -57,7 +61,7 @@ const CreateTrip: React.FC = () => {
     return str.replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const handleInputChange = (field: keyof TripFormData, value: string | boolean) => {
+  const handleInputChange = (field: keyof TripFormData, value: string | boolean | number) => {
     if (field === 'name' && typeof value === 'string') {
       value = capitalizeWords(value);
     }
@@ -98,6 +102,11 @@ const CreateTrip: React.FC = () => {
       if (endDate < startDate) {
         newErrors.dateRange = 'End date must be after start date.';
       }
+    }
+
+    // Budget validation
+    if (formData.budget !== '' && formData.budget <= 0) {
+      newErrors.budget = 'Budget must be a positive number.';
     }
 
     setErrors(newErrors);
@@ -203,7 +212,8 @@ const CreateTrip: React.FC = () => {
           end_date: formData.end_date,
           is_public: formData.is_public,
           user_id: user.id,
-          cover_photo_url: null // We'll update this after moving the photo
+          cover_photo_url: null, // We'll update this after moving the photo
+          budget: formData.budget || null // Add budget to the trip, convert empty string to null
         })
         .select()
         .single();
@@ -394,6 +404,32 @@ const CreateTrip: React.FC = () => {
                 </p>
               </div>
 
+              {/* Budget Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Budget <span className="text-gray-500">(optional)</span>
+                </label>
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="h-5 w-5 text-gray-500" />
+                  <input
+                    type="number"
+                    value={formData.budget}
+                    onChange={(e) => handleInputChange('budget', parseFloat(e.target.value) || '')}
+                    placeholder="e.g., 5000"
+                    className="w-full px-4 py-3 bg-white border rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Enter your estimated total trip budget (e.g., 5000 for $5000)
+                </p>
+                {errors.budget && (
+                  <p className="mt-2 text-sm text-red-400 flex items-center space-x-1">
+                    <span>⚠️</span>
+                    <span>{errors.budget}</span>
+                  </p>
+                )}
+              </div>
+
               {/* Photo Upload Section */}
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-700">
@@ -567,6 +603,19 @@ const CreateTrip: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Budget Display */}
+                  {formData.budget && (
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Budget</span>
+                        <span className="text-green-600 font-medium flex items-center space-x-1">
+                          <DollarSign className="h-4 w-4" />
+                          <span>{formData.budget.toLocaleString()}</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -577,6 +626,7 @@ const CreateTrip: React.FC = () => {
                   <li>• Choose a memorable trip name</li>
                   <li>• Add a beautiful cover photo</li>
                   <li>• Include your travel goals in notes</li>
+                  <li>• Set a budget to track expenses</li>
                 </ul>
               </div>
             </div>
