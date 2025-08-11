@@ -8,6 +8,7 @@ import Hero from './components/Hero';
 import PopularPlaces from './components/PopularPlaces';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
+import ResetPassword from './components/ResetPassword';
 import CreateTrip from './components/CreateTrip';
 import MyTrips from './components/MyTrips';
 import ItineraryBuilder from './components/ItineraryBuilder';
@@ -44,6 +45,7 @@ function App() {
           {/* Authentication Routes - Public */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           
           {/* Protected Routes - Require Authentication */}
           <Route path="/my-trips" element={

@@ -55,7 +55,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session loaded:', session)
       setSession(session)
@@ -68,7 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     })
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -138,23 +136,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       console.log('Signing out...')
-      await supabase.auth.signOut()
-      console.log('Sign out successful')
+      
+      // First, clear local state immediately
+      setUser(null)
+      setSession(null)
+      
+      // Clear all Supabase-related localStorage items
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+          keysToRemove.push(key)
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key)
+        console.log('Removed localStorage item:', key)
+      })
+      
+      // Attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        console.warn('Supabase sign out error (this is often expected):', error)
+        // Don't throw error here as we've already cleared local state
+      } else {
+        console.log('Supabase sign out successful')
+      }
+      
+      console.log('Sign out completed')
       debugTokens()
+      
     } catch (err) {
       console.error('Sign out error:', err)
+      // Even if there's an error, ensure local state is cleared
+      setUser(null)
+      setSession(null)
     }
   }
 
-  const value = {
-    user,
-    session,
-    loading,
-    signIn,
-    signUp,
-    signOut,
-    debugTokens,
-  }
+  const value = { user, session, loading, signIn, signUp, signOut, debugTokens }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
