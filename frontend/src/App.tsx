@@ -18,6 +18,7 @@ import ItineraryView from './components/ItineraryView';
 import BudgetBreakdown from './components/BudgetBreakdown';
 import TripCalendar from './components/TripCalendar';
 import SharedItinerary from './components/SharedItinerary';
+import TripSharePage from './components/TripSharePage';
 import UserProfile from './components/UserProfile';
 import AdminDashboard from './components/AdminDashboard';
 import AboutUs from './components/AboutUs';
@@ -113,6 +114,16 @@ function App() {
               </ProtectedRoute>
             } />
             
+            <Route path="/trip/:tripId/share" element={
+              <ProtectedRoute>
+                <>
+                  <Navbar />
+                  <TripSharePage />
+                  <Footer />
+                </>
+              </ProtectedRoute>
+            } />
+            
             <Route path="/budget/:tripId" element={
               <ProtectedRoute>
                 <>
@@ -170,12 +181,23 @@ function App() {
               </>
             } />
             
-            {/* Shared Itinerary - Public (no auth required) */}
-            <Route path="/trips/:publicId" element={
+            {/* Shared Itinerary - Public (no auth required) - Must come before catch-all */}
+            <Route path="/shared/:token" element={
               <>
-                <SharedItinerary publicId="abc123" />
+                <SharedItinerary />
                 <Footer />
               </>
+            } />
+            
+            {/* Test route to verify routing works */}
+            <Route path="/test-shared" element={
+              <div className="min-h-screen bg-gray-100 pt-16">
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                  <h1 className="text-2xl font-bold mb-4">Test Shared Route</h1>
+                  <p>This is a test route to verify routing is working.</p>
+                  <p>Current URL: {window.location.href}</p>
+                </div>
+              </div>
             } />
             
             {/* Redirect any unknown routes to home */}

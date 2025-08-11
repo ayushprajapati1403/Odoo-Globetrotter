@@ -19,39 +19,39 @@ export type Database = {
           email: string
           name: string | null
           home_city_id: string | null
-          currency: string
           preferences: any
           created_at: string
           updated_at: string
           active: boolean
           currency_id: string | null
           photo: string | null
+          role_id: number | null
         }
         Insert: {
           id?: string
           email: string
           name?: string | null
           home_city_id?: string | null
-          currency?: string
           preferences?: any
           created_at?: string
           updated_at?: string
           active?: boolean
           currency_id?: string | null
           photo?: string | null
+          role_id?: number | null
         }
         Update: {
           id?: string
           email?: string
           name?: string | null
           home_city_id?: string | null
-          currency?: string
           preferences?: any
           created_at?: string
           updated_at?: string
           active?: boolean
           currency_id?: string | null
           photo?: string | null
+          role_id?: number | null
         }
       }
       cities: {
@@ -70,6 +70,7 @@ export type Database = {
           created_at: string
           updated_at: string
           tsv: any
+          currency_id: string | null
         }
         Insert: {
           id?: string
@@ -86,6 +87,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           tsv?: any
+          currency_id?: string | null
         }
         Update: {
           id?: string
@@ -102,6 +104,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           tsv?: any
+          currency_id?: string | null
         }
       }
       trips: {
@@ -120,6 +123,9 @@ export type Database = {
           created_at: string
           updated_at: string
           deleted: boolean
+          trip_type: string
+          budget: number | null
+          fixed_cost: number | null
         }
         Insert: {
           id?: string
@@ -136,6 +142,9 @@ export type Database = {
           created_at?: string
           updated_at?: string
           deleted?: boolean
+          trip_type?: string
+          budget?: number | null
+          fixed_cost?: number | null
         }
         Update: {
           id?: string
@@ -152,6 +161,9 @@ export type Database = {
           created_at?: string
           updated_at?: string
           deleted?: boolean
+          trip_type?: string
+          budget?: number | null
+          fixed_cost?: number | null
         }
       }
       trip_stops: {
@@ -207,11 +219,13 @@ export type Database = {
           category: string | null
           cost: number | null
           duration_minutes: number | null
-          vendor: string | null
           metadata: any
           created_at: string
           updated_at: string
           deleted: boolean
+          currency_id: string | null
+          start_time: string | null
+          end_time: string | null
         }
         Insert: {
           id?: string
@@ -221,11 +235,13 @@ export type Database = {
           category?: string | null
           cost?: number | null
           duration_minutes?: number | null
-          vendor?: string | null
           metadata?: any
           created_at?: string
           updated_at?: string
           deleted?: boolean
+          currency_id?: string | null
+          start_time?: string | null
+          end_time?: string | null
         }
         Update: {
           id?: string
@@ -235,11 +251,13 @@ export type Database = {
           category?: string | null
           cost?: number | null
           duration_minutes?: number | null
-          vendor?: string | null
           metadata?: any
           created_at?: string
           updated_at?: string
           deleted?: boolean
+          currency_id?: string | null
+          start_time?: string | null
+          end_time?: string | null
         }
       }
       trip_activities: {
@@ -293,6 +311,7 @@ export type Database = {
           currency: string
           metadata: any
           created_at: string
+          currency_id: string | null
         }
         Insert: {
           id?: string
@@ -303,6 +322,7 @@ export type Database = {
           currency?: string
           metadata?: any
           created_at?: string
+          currency_id?: string | null
         }
         Update: {
           id?: string
@@ -313,6 +333,7 @@ export type Database = {
           currency?: string
           metadata?: any
           created_at?: string
+          currency_id?: string | null
         }
       }
       transport_costs: {
@@ -327,6 +348,7 @@ export type Database = {
           metadata: any
           created_at: string
           updated_at: string
+          currency_id: string | null
         }
         Insert: {
           id?: string
@@ -339,6 +361,7 @@ export type Database = {
           metadata?: any
           created_at?: string
           updated_at?: string
+          currency_id?: string | null
         }
         Update: {
           id?: string
@@ -351,6 +374,7 @@ export type Database = {
           metadata?: any
           created_at?: string
           updated_at?: string
+          currency_id?: string | null
         }
       }
       currencies: {
@@ -432,6 +456,64 @@ export type Database = {
           performed_by?: string | null
           payload?: any
           created_at?: string
+        }
+      }
+      roles: {
+        Row: {
+          id: number
+          name: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      user_trips: {
+        Row: {
+          id: string
+          trip_id: string
+          user_id: string
+          invited_by: string | null
+          last_modified_by: string | null
+          last_modified_at: string
+          created_at: string
+          can_delete: boolean
+          role: number | null
+        }
+        Insert: {
+          id?: string
+          trip_id: string
+          user_id: string
+          invited_by?: string | null
+          last_modified_by?: string | null
+          last_modified_at?: string
+          created_at?: string
+          can_delete?: boolean
+          role?: number | null
+        }
+        Update: {
+          id?: string
+          trip_id?: string
+          user_id?: string
+          invited_by?: string | null
+          last_modified_by?: string | null
+          last_modified_at?: string
+          created_at?: string
+          can_delete?: boolean
+          role?: number | null
         }
       }
     }

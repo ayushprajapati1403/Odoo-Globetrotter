@@ -15,12 +15,12 @@ import {
   DollarSign,
   Users,
   Globe,
-  Lock
+  Lock,
+  Share2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from './Toast';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   Trip, 
   isTripOwner, 
@@ -44,7 +44,7 @@ interface FilterOption {
 const MyTrips: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { showSuccess, showError, showInfo } = useToast();
+
   
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,9 +89,9 @@ const MyTrips: React.FC = () => {
       console.log('Trips table test:', { data: tripsTest, error: tripsError });
       
       if (tripsError) {
-        showError('Database Error', `Trips table error: ${tripsError.message}`);
+        console.error('Database Error - Trips table error:', tripsError.message);
       } else {
-        showSuccess('Database Connected', 'Trips table is accessible');
+        console.log('Database Connected - Trips table is accessible');
       }
       
       // Test if user_trips table exists and is accessible
@@ -103,14 +103,14 @@ const MyTrips: React.FC = () => {
       console.log('User trips table test:', { data: userTripsTest, error: userTripsError });
       
       if (userTripsError) {
-        showError('Database Error', `User trips table error: ${userTripsError.message}`);
+        console.error('Database Error - User trips table error:', userTripsError.message);
       } else {
-        showSuccess('Database Connected', 'User trips table is accessible');
+        console.log('Database Connected - User trips table is accessible');
       }
       
     } catch (err) {
       console.error('Database connection test error:', err);
-      showError('Connection Error', 'Failed to test database connection');
+      console.error('Connection Error - Failed to test database connection');
     }
   };
 
@@ -153,13 +153,13 @@ const MyTrips: React.FC = () => {
       setTrips(tripsData || []);
       
       if (tripsData && tripsData.length > 0) {
-        showSuccess('Trips Loaded', `Successfully loaded ${tripsData.length} trips`);
+        console.log('Trips Loaded - Successfully loaded', tripsData.length, 'trips');
       }
     } catch (err) {
       console.error('Error fetching trips:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch trips';
       setError(errorMessage);
-      showError('Fetch Error', errorMessage);
+      console.error('Fetch Error:', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -282,15 +282,13 @@ const MyTrips: React.FC = () => {
       setTrips(prev => prev.filter(trip => trip.id !== showDeleteModal));
       setShowDeleteModal(null);
       
-      showSuccess('Trip Deleted', 'Trip has been successfully deleted');
+      console.log('Trip Deleted - Trip has been successfully deleted');
     } catch (err) {
       console.error('Error deleting trip:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete trip';
-      showError('Delete Error', errorMessage);
+      console.error('Delete Error:', errorMessage);
     }
   };
-
-
 
   const isTripOwnerLocal = (trip: Trip) => {
     return isTripOwner(trip, user);
@@ -590,6 +588,13 @@ const MyTrips: React.FC = () => {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
+                                              <Link
+                          to={`/trip/${trip.id}/share`}
+                          className="bg-white/90 backdrop-blur-sm text-gray-900 p-2 rounded-full hover:bg-[#42eff5] hover:text-white transition-colors"
+                          title="Share Trip"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Link>
                     </div>
                   </div>
 
@@ -621,12 +626,12 @@ const MyTrips: React.FC = () => {
 
                     {/* Action Buttons */}
                     <div className="flex space-x-2">
-                      <button 
-                        onClick={() => navigate(`/itinerary/${trip.id}`)}
+                      <Link
+                        to={`/itinerary/${trip.id}`}
                         className="flex-1 bg-[#8B5CF6] text-white py-2 px-4 rounded-lg font-medium hover:bg-[#8B5CF6]/90 transition-colors text-sm"
                       >
-                        Edit Itinerary
-                      </button>
+                        View Itinerary
+                      </Link>
                       {canEditTripLocal(trip) && (
                         <button 
                           onClick={() => navigate(`/edit-trip/${trip.id}`)}
@@ -673,12 +678,10 @@ const MyTrips: React.FC = () => {
           </div>
         )}
 
-
-
         {/* Trip Suggestions */}
         <div className="mt-8 pt-8 border-t border-gray-200">
           <TripSuggestions onTripCloned={(tripId) => {
-            showSuccess('Trip Cloned!', 'Your new trip has been created successfully');
+            console.log('Trip Cloned! - Your new trip has been created successfully');
             fetchTrips(); // Refresh the trips list
           }} />
         </div>

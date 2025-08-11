@@ -19,8 +19,7 @@ const Navbar: React.FC = () => {
       hasDropdown: true,
       dropdownItems: [
         { name: 'All Trips', href: '/my-trips' },
-        { name: 'Create New Trip', href: '/create-trip' },
-        { name: 'Shared Trips', href: '/trips/abc123' }
+        { name: 'Create New Trip', href: '/create-trip' }
       ]
     },
     {
