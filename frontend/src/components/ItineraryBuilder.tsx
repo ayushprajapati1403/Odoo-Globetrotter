@@ -72,7 +72,6 @@ const ItineraryBuilder: React.FC = () => {
     activity_id: '',
     scheduled_date: '',
     start_time: '',
-    duration_minutes: '',
     notes: ''
   });
 
@@ -154,7 +153,6 @@ const ItineraryBuilder: React.FC = () => {
     activity_id?: string;
     scheduled_date?: string;
     start_time?: string;
-    duration_minutes?: string;
   }>({});
 
   // Validation functions
@@ -227,15 +225,7 @@ const ItineraryBuilder: React.FC = () => {
       }
     }
 
-    // Duration validation
-    if (activityForm.duration_minutes) {
-      const duration = parseInt(activityForm.duration_minutes);
-      if (isNaN(duration) || duration <= 0) {
-        errors.duration_minutes = 'Duration must be a positive number';
-      } else if (duration > 1440) { // 24 hours in minutes
-        errors.duration_minutes = 'Duration cannot exceed 24 hours';
-      }
-    }
+
 
     setActivityFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -271,6 +261,8 @@ const ItineraryBuilder: React.FC = () => {
     try {
       setLoading(true);
       const { trip: tripData, stops: stopsData } = await ItineraryService.getTripWithStops(tripId!);
+      
+      console.log('Fetched trip data:', { trip: tripData, stops: stopsData });
       
       // Check permissions
       if (!canEditTrip(tripData, user)) {
@@ -504,6 +496,14 @@ const ItineraryBuilder: React.FC = () => {
     // Clear previous errors
     clearActivityFormErrors();
     
+    // Validate that we have a selected stop
+    if (!selectedStopId) {
+      showError('Validation Error', 'No trip stop selected. Please try again.');
+      return;
+    }
+    
+    console.log('Adding activity with selectedStopId:', selectedStopId);
+    
     // Validate form before submission
     if (!validateActivityForm()) {
       showError('Validation Error', 'Please fix the errors in the form');
@@ -513,11 +513,10 @@ const ItineraryBuilder: React.FC = () => {
     try {
       setSaving(true);
       
-      const newActivity = await ItineraryService.addActivityToStop(selectedStopId!, {
+      const newActivity = await ItineraryService.addActivityToStop(selectedStopId, {
         activity_id: activityForm.activity_id,
         scheduled_date: activityForm.scheduled_date,
         start_time: activityForm.start_time || undefined,
-        duration_minutes: activityForm.duration_minutes ? parseInt(activityForm.duration_minutes) : undefined,
         notes: activityForm.notes || undefined
       });
 
@@ -526,6 +525,7 @@ const ItineraryBuilder: React.FC = () => {
       
       setShowActivityModal(false);
       resetActivityForm();
+      setSelectedStopId(null); // Clear the selected stop after successful addition
       showSuccess('Activity Added', 'New activity has been added');
     } catch (error: any) {
       console.error('Error adding activity:', error);
@@ -563,7 +563,6 @@ const ItineraryBuilder: React.FC = () => {
         activity_id: activityForm.activity_id,
         scheduled_date: activityForm.scheduled_date,
         start_time: activityForm.start_time || undefined,
-        duration_minutes: activityForm.duration_minutes ? parseInt(activityForm.duration_minutes) : undefined,
         notes: activityForm.notes || undefined
       });
 
@@ -572,6 +571,7 @@ const ItineraryBuilder: React.FC = () => {
       
       setShowActivityModal(false);
       resetActivityForm();
+      setSelectedStopId(null); // Clear the selected stop after successful update
       showSuccess('Activity Updated', 'Activity has been updated');
     } catch (error: any) {
       console.error('Error updating activity:', error);
@@ -624,11 +624,10 @@ const ItineraryBuilder: React.FC = () => {
       activity_id: '',
       scheduled_date: '',
       start_time: '',
-      duration_minutes: '',
       notes: ''
     });
     setEditingActivity(null);
-    setSelectedStopId(null);
+    // Don't clear selectedStopId here as it's needed for adding activities
     clearActivityFormErrors();
   };
 
@@ -650,6 +649,7 @@ const ItineraryBuilder: React.FC = () => {
 
   const openActivityModal = (stopId: string, activity?: TripActivity) => {
     clearActivityFormErrors();
+    console.log('Opening activity modal for stopId:', stopId);
     setSelectedStopId(stopId);
     
     // Find the stop to get the city_id
@@ -663,12 +663,19 @@ const ItineraryBuilder: React.FC = () => {
         activity_id: activity.activity_id,
         scheduled_date: activity.scheduled_date,
         start_time: activity.start_time || '',
-        duration_minutes: activity.duration_minutes?.toString() || '',
         notes: activity.notes || ''
       });
       setEditingActivity(activity);
     } else {
-      resetActivityForm();
+      // Reset form but keep the selectedStopId
+      setActivityForm({
+        activity_id: '',
+        scheduled_date: '',
+        start_time: '',
+        notes: ''
+      });
+      setEditingActivity(null);
+      clearActivityFormErrors();
     }
     setShowActivityModal(true);
   };
@@ -1275,31 +1282,33 @@ const ItineraryBuilder: React.FC = () => {
                 </div>
                 </div>
 
-              {/* Duration */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={activityForm.duration_minutes}
-                  onChange={(e) => {
-                    setActivityForm(prev => ({ ...prev, duration_minutes: e.target.value }));
-                    clearActivityFormErrors();
-                  }}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 transition-all duration-300 ${
-                    activityFormErrors.duration_minutes
-                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' 
-                      : 'border-gray-300 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50'
-                  }`}
-                  placeholder="120"
-                  min="0"
-                  max="1440"
-                />
-                {activityFormErrors.duration_minutes && (
-                  <p className="mt-1 text-xs text-red-500">{activityFormErrors.duration_minutes}</p>
-                )}
-              </div>
+              {/* Duration and Cost Display */}
+              {activityForm.activity_id && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Duration
+                    </label>
+                    <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                      {(() => {
+                        const selectedActivity = cityActivities.find(a => a.id === activityForm.activity_id);
+                        return selectedActivity ? `${selectedActivity.duration_minutes} minutes` : 'Duration not available';
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cost
+                    </label>
+                    <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                      {(() => {
+                        const selectedActivity = cityActivities.find(a => a.id === activityForm.activity_id);
+                        return selectedActivity ? `$${selectedActivity.cost}` : 'Cost not available';
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Notes */}
               <div>
@@ -1319,7 +1328,10 @@ const ItineraryBuilder: React.FC = () => {
                 <div className="flex space-x-3 pt-4">
                   <button
                   type="button"
-                  onClick={() => setShowActivityModal(false)}
+                  onClick={() => {
+                    setShowActivityModal(false);
+                    setSelectedStopId(null); // Clear selected stop when closing modal
+                  }}
                   className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
                   disabled={saving}
                   >

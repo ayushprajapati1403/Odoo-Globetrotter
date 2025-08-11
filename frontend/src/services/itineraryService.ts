@@ -319,7 +319,6 @@ export class ItineraryService {
     activity_id: string;
     scheduled_date: string;
     start_time?: string;
-    duration_minutes?: number;
     notes?: string;
   }) {
     try {
@@ -339,20 +338,12 @@ export class ItineraryService {
         throw new Error('Scheduled date cannot be in the past');
       }
 
-      // Validate duration if provided
-      if (activityData.duration_minutes !== undefined) {
-        if (activityData.duration_minutes <= 0) {
-          throw new Error('Duration must be a positive number');
-        }
-        if (activityData.duration_minutes > 1440) {
-          throw new Error('Duration cannot exceed 24 hours');
-        }
-      }
 
-      // Get the activity details to populate the name and cost
+
+      // Get the activity details to populate the name, cost, and duration
       const { data: activity, error: activityError } = await supabase
         .from('activities')
-        .select('name, cost')
+        .select('name, cost, duration_minutes')
         .eq('id', activityData.activity_id)
         .eq('deleted', false)
         .single();
@@ -373,7 +364,7 @@ export class ItineraryService {
           cost: activity.cost,
           scheduled_date: activityData.scheduled_date,
           start_time: activityData.start_time,
-          duration_minutes: activityData.duration_minutes,
+          duration_minutes: activity.duration_minutes,
           notes: activityData.notes
         })
         .select()
@@ -407,14 +398,16 @@ export class ItineraryService {
       if (updates.activity_id) {
         const { data: activity, error: activityError } = await supabase
           .from('activities')
-          .select('name, cost')
+          .select('name, cost, duration_minutes')
           .eq('id', updates.activity_id)
+          .eq('deleted', false)
           .single();
 
         if (activityError) throw activityError;
 
         updates.name = activity.name;
         updates.cost = activity.cost;
+        updates.duration_minutes = activity.duration_minutes;
       }
 
       const { data, error } = await supabase
