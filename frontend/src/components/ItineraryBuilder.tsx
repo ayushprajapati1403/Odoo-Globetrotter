@@ -22,6 +22,7 @@ import { useToast } from './Toast';
 import { ItineraryService, TripStop, TripActivity, City, Activity } from '../services/itineraryService';
 import { canEditTrip } from '../utils/permissions';
 import TripSuggestions from './TripSuggestions';
+import TransportDetails from './TransportDetails';
 
 interface Trip {
   id: string;
@@ -886,6 +887,28 @@ const ItineraryBuilder: React.FC = () => {
                       </div>
               )}
             </div>
+
+            {/* Transport Details */}
+            {stops.length > 1 && (
+              <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <TransportDetails
+                  tripId={tripId!}
+                  stops={stops}
+                  onTransportAdded={() => {
+                    // Refresh trip data if needed
+                    fetchTripData();
+                  }}
+                  onTransportUpdated={() => {
+                    // Refresh trip data if needed
+                    fetchTripData();
+                  }}
+                  onTransportDeleted={() => {
+                    // Refresh trip data if needed
+                    fetchTripData();
+                  }}
+                />
+              </div>
+            )}
                       </div>
 
           {/* Sidebar */}
