@@ -1,256 +1,317 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, MapPin, Star, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Star, MapPin, ArrowRight } from 'lucide-react';
 
-const Hero: React.FC = () => {
+const Hero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-
-  const destinations = [
-    {
-      id: 1,
-      name: "Buddha temple, Thailand",
-      image: "https://images.pexels.com/photos/1007426/pexels-photo-1007426.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
-      rating: 4.8,
-      position: { top: '10%', right: '25%' },
-      size: 'large'
-    },
-    {
-      id: 2,
-      name: "Broken Beach, Bali",
-      image: "https://images.pexels.com/photos/2474690/pexels-photo-2474690.jpeg?auto=compress&cs=tinysrgb&w=350&h=250&fit=crop",
-      rating: 4.9,
-      position: { top: '15%', right: '5%' },
-      size: 'medium'
-    },
-    {
-      id: 3,
-      name: "Kerala",
-      image: "https://images.pexels.com/photos/1591373/pexels-photo-1591373.jpeg?auto=compress&cs=tinysrgb&w=300&h=400&fit=crop",
-      rating: 4.7,
-      position: { top: '35%', right: '2%' },
-      size: 'tall'
-    },
-    {
-      id: 4,
-      name: "Santorini, Greece",
-      image: "https://images.pexels.com/photos/161815/santorini-oia-greece-water-161815.jpeg?auto=compress&cs=tinysrgb&w=280&h=200&fit=crop",
-      rating: 4.9,
-      position: { bottom: '25%', right: '15%' },
-      size: 'small'
-    }
-  ];
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
   const mainDestinations = [
     {
-      name: "INDONESIA",
-      description: "As the largest archipelagic country in the world, Indonesia is blessed with so many different people, cultures, customs, traditions, artworks, food, animals, plants, landscapes, and everything that made it almost like 100 (or even 200) countries melted beautifully into one.",
-      image: "https://images.pexels.com/photos/1591373/pexels-photo-1591373.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop"
+      id: 1,
+      country: "MALDIVES",
+      description: "Discover pristine white sand beaches, crystal-clear turquoise waters, and luxurious overwater bungalows in this tropical paradise. Experience world-class diving, spa treatments, and unforgettable sunsets.",
+      image: "https://images.pexels.com/photos/1287460/pexels-photo-1287460.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop",
+      destinations: [
+        {
+          id: 1,
+          name: "Malé",
+          image: "https://images.pexels.com/photos/1287460/pexels-photo-1287460.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.8,
+          size: "large"
+        },
+        {
+          id: 2,
+          name: "Hulhumalé",
+          image: "https://images.pexels.com/photos/3250613/pexels-photo-3250613.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.7,
+          size: "medium"
+        },
+        {
+          id: 3,
+          name: "Maafushi",
+          image: "https://images.pexels.com/photos/1320684/pexels-photo-1320684.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.9,
+          size: "tall"
+        },
+        {
+          id: 4,
+          name: "Thulusdhoo",
+          image: "https://images.pexels.com/photos/2474690/pexels-photo-2474690.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.6,
+          size: "small"
+        }
+      ]
     },
     {
-      name: "THAILAND",
-      description: "Land of smiles with ancient temples, pristine beaches, vibrant street markets, and rich cultural heritage that captivates every traveler's heart with its unique blend of tradition and modernity.",
-      image: "https://images.pexels.com/photos/1007426/pexels-photo-1007426.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop"
+      id: 2,
+      country: "BALI",
+      description: "Immerse yourself in the cultural heart of Indonesia with ancient temples, lush rice terraces, and vibrant local traditions. From volcanic mountains to pristine beaches, Bali offers diverse landscapes and spiritual experiences.",
+      image: "https://images.pexels.com/photos/2474690/pexels-photo-2474690.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop",
+      destinations: [
+        {
+          id: 5,
+          name: "Ubud",
+          image: "https://images.pexels.com/photos/2474690/pexels-photo-2474690.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.9,
+          size: "large"
+        },
+        {
+          id: 6,
+          name: "Seminyak",
+          image: "https://images.pexels.com/photos/1320684/pexels-photo-1320684.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.7,
+          size: "medium"
+        },
+        {
+          id: 7,
+          name: "Canggu",
+          image: "https://images.pexels.com/photos/3250613/pexels-photo-3250613.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.8,
+          size: "tall"
+        },
+        {
+          id: 8,
+          name: "Nusa Penida",
+          image: "https://images.pexels.com/photos/1287460/pexels-photo-1287460.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.9,
+          size: "small"
+        }
+      ]
     },
     {
-      name: "GREECE",
-      description: "Cradle of civilization with stunning islands, crystal-clear waters, ancient ruins, and Mediterranean charm that creates unforgettable memories with every sunset and every ancient stone.",
-      image: "https://images.pexels.com/photos/161815/santorini-oia-greece-water-161815.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop"
+      id: 3,
+      country: "SANTORINI",
+      description: "Experience the magic of Greece's most romantic island with iconic blue-domed churches, dramatic cliff-top villages, and breathtaking sunsets. Explore ancient ruins, volcanic beaches, and world-renowned wineries.",
+      image: "https://images.pexels.com/photos/1320684/pexels-photo-1320684.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop",
+      destinations: [
+        {
+          id: 9,
+          name: "Oia",
+          image: "https://images.pexels.com/photos/1320684/pexels-photo-1320684.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.9,
+          size: "large"
+        },
+        {
+          id: 10,
+          name: "Fira",
+          image: "https://images.pexels.com/photos/2474690/pexels-photo-2474690.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.8,
+          size: "medium"
+        },
+        {
+          id: 11,
+          name: "Imerovigli",
+          image: "https://images.pexels.com/photos/1287460/pexels-photo-1287460.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.7,
+          size: "tall"
+        },
+        {
+          id: 12,
+          name: "Kamari",
+          image: "https://images.pexels.com/photos/3250613/pexels-photo-3250613.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+          rating: 4.6,
+          size: "small"
+        }
+      ]
     }
   ];
 
+  const getCardSizeClasses = (size: string) => {
+    switch (size) {
+      case 'large':
+        return 'w-72 h-80';
+      case 'medium':
+        return 'w-56 h-64';
+      case 'tall':
+        return 'w-48 h-96';
+      case 'small':
+        return 'w-40 h-48';
+      default:
+        return 'w-56 h-64';
+    }
+  };
+
+  const goToSlide = (index: number) => {
+    setIsAutoPlaying(false);
+    setCurrentSlide(index);
+  };
+
+  const prevSlide = () => {
+    setIsAutoPlaying(false);
+    setCurrentSlide((prev) => (prev - 1 + mainDestinations.length) % mainDestinations.length);
+  };
+
+  const nextSlide = () => {
+    setIsAutoPlaying(false);
+    setCurrentSlide((prev) => (prev + 1) % mainDestinations.length);
+  };
+
   useEffect(() => {
+    if (!isAutoPlaying) return;
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % mainDestinations.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isAutoPlaying, mainDestinations.length]);
 
-  const getCardSize = (size: string) => {
-    switch (size) {
-      case 'large':
-        return 'w-80 h-60';
-      case 'medium':
-        return 'w-64 h-48';
-      case 'tall':
-        return 'w-48 h-72';
-      case 'small':
-        return 'w-56 h-40';
-      default:
-        return 'w-64 h-48';
-    }
-  };
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % mainDestinations.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + mainDestinations.length) % mainDestinations.length);
-  };
+  const currentDestination = mainDestinations[currentSlide];
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* Background Images */}
+    <div className="relative h-screen w-full overflow-hidden">
+      {/* Background Slideshow with Ken Burns Effect */}
       <div className="absolute inset-0">
         {mainDestinations.map((destination, index) => (
           <div
-            key={index}
-            className={`absolute inset-0 transition-all duration-2000 ease-in-out ${
-              index === currentSlide ? 'opacity-100 scale-100' : 'opacity-0 scale-110'
+            key={destination.id}
+            className={`absolute inset-0 transition-opacity duration-1000 ${
+              index === currentSlide ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <img
-              src={destination.image}
-              alt={destination.name}
-              className="w-full h-full object-cover"
+            <div
+              className="w-full h-full bg-cover bg-center animate-ken-burns"
+              style={{
+                backgroundImage: `url(${destination.image})`,
+                animationDuration: '6000ms'
+              }}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
           </div>
         ))}
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 min-h-screen flex items-center">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            
-            {/* Left Content */}
-            <div className="space-y-8 pt-20">
-              {/* Country Name */}
-              <div className="space-y-6">
-                <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-none tracking-wider">
-                  {mainDestinations[currentSlide].name}
-                </h1>
-                
-                {/* Description */}
-                <p className="text-lg text-white/90 leading-relaxed max-w-2xl">
-                  {mainDestinations[currentSlide].description}
-                </p>
+      {/* Dark Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
 
-                {/* CTA Button */}
-                <button className="group bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 shadow-2xl">
-                  <span>Explore</span>
-                  <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
-                </button>
-              </div>
+      {/* Left Side Content */}
+      <div className="relative z-10 h-full flex items-center">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
+          <div className="grid lg:grid-cols-2 gap-12 items-center h-full">
+            <div className="text-white space-y-8">
+              <h1 className="text-6xl lg:text-8xl font-bold tracking-wider">
+                {currentDestination.country}
+              </h1>
+              <p className="text-xl lg:text-2xl leading-relaxed max-w-2xl text-white/90">
+                {currentDestination.description}
+              </p>
+              <button className="group bg-[#8B5CF6] hover:bg-[#8B5CF6]/90 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 shadow-2xl">
+                <span>Explore</span>
+                <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
+              </button>
             </div>
 
-            {/* Right Side - Floating Destination Cards */}
-            <div className="relative h-96 lg:h-screen">
-              {destinations.map((destination, index) => (
-                <div
-                  key={destination.id}
-                  className={`absolute ${getCardSize(destination.size)} animate-float`}
-                  style={{
-                    ...destination.position,
-                    animationDelay: `${index * 0.5}s`
-                  }}
-                >
-                  <div className="relative w-full h-full group cursor-pointer">
-                    {/* Card Image */}
-                    <img
-                      src={destination.image}
-                      alt={destination.name}
-                      className="w-full h-full object-cover rounded-2xl shadow-2xl group-hover:scale-105 transition-transform duration-300"
-                    />
-                    
-                    {/* Card Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent rounded-2xl"></div>
-                    
-                    {/* Card Content */}
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-white font-semibold text-sm">
-                          {destination.name}
-                        </h3>
-                        <button className="bg-white/20 backdrop-blur-sm p-2 rounded-full hover:bg-white/30 transition-colors">
-                          <Heart className="h-4 w-4 text-white" />
-                        </button>
+            {/* Right Side Floating Cards */}
+            <div className="relative h-full hidden lg:block">
+              <div className="absolute inset-0">
+                {currentDestination.destinations.map((dest, index) => (
+                  <div
+                    key={dest.id}
+                    className={`absolute rounded-2xl overflow-hidden shadow-2xl cursor-pointer transition-all duration-500 hover:scale-105 group animate-float ${getCardSizeClasses(dest.size)}`}
+                    style={{
+                      top: index === 0 ? '10%' : index === 1 ? '5%' : index === 2 ? '25%' : '65%',
+                      right: index === 0 ? '20%' : index === 1 ? '60%' : index === 2 ? '5%' : '45%',
+                      animationDelay: `${index * 0.5}s`
+                    }}
+                  >
+                    <div className="relative h-full">
+                      <img
+                        src={dest.image}
+                        alt={dest.name}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                      <div className="absolute bottom-4 left-4 right-4 text-white">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-semibold text-lg">{dest.name}</h3>
+                          <Heart className="w-5 h-5 text-white/70 hover:text-red-500 transition-colors cursor-pointer" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3 h-3 ${
+                                  i < Math.floor(dest.rating) ? 'text-yellow-400 fill-current' : 'text-white/30'
+                                }`}
+                              />
+                            ))}
+                            <span className="text-sm ml-1">{dest.rating}</span>
+                          </div>
+                          <MapPin className="w-4 h-4 text-white/70" />
+                        </div>
                       </div>
-                      
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                        <span className="text-white text-sm font-medium">
-                          {destination.rating}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Bookmark Icon */}
-                    <div className="absolute top-4 right-4">
-                      <div className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg">
-                        <MapPin className="h-4 w-4 text-gray-700" />
-                      </div>
-                    </div>
-
-                    {/* Rating Dots */}
-                    <div className="absolute top-4 left-4 flex space-x-1">
-                      {[...Array(5)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-2 h-2 rounded-full ${
-                            i < Math.floor(destination.rating) ? 'bg-white' : 'bg-white/40'
-                          }`}
-                        />
-                      ))}
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Left Side Navigation */}
-      <div className="absolute left-8 top-1/2 transform -translate-y-1/2 space-y-6 z-20">
-        <div className="w-px h-16 bg-white/30"></div>
-        <div className="flex flex-col space-y-4">
-          {mainDestinations.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentSlide 
-                  ? 'bg-white scale-125' 
-                  : 'bg-white/40 hover:bg-white/60'
-              }`}
-            />
-          ))}
-        </div>
-        <div className="w-px h-16 bg-white/30"></div>
-        <div className="text-white text-sm font-medium transform -rotate-90 origin-center whitespace-nowrap">
-          01/04
-        </div>
+      {/* Left Vertical Navigation Dots */}
+      <div className="absolute left-8 top-1/2 transform -translate-y-1/2 z-20 space-y-4">
+        {mainDestinations.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => goToSlide(index)}
+            className={`block w-3 h-3 rounded-full transition-all duration-300 ${
+              index === currentSlide 
+                ? 'bg-white scale-125' 
+                : 'bg-white/50 hover:bg-white/70'
+            }`}
+          />
+        ))}
       </div>
 
       {/* Bottom Navigation */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-6 z-20">
-        <button
-          onClick={prevSlide}
-          className="bg-white/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-white/30 transition-colors"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        
-        <div className="text-white text-sm font-medium">
-          0{currentSlide + 1} / 0{mainDestinations.length}
+      <div className="absolute bottom-8 left-0 right-0 z-20">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            {/* Prev/Next Buttons */}
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={prevSlide}
+                className="p-3 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-300"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={nextSlide}
+                className="p-3 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-300"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Page Counter */}
+            <div className="flex items-center space-x-2 text-white text-lg font-medium">
+              <span>0{currentSlide + 1}</span>
+              <span className="text-white/50">/</span>
+              <span className="text-white/50">0{mainDestinations.length}</span>
+            </div>
+          </div>
         </div>
-        
-        <button
-          onClick={nextSlide}
-          className="bg-white/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-white/30 transition-colors"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
       </div>
 
-      {/* Bottom Right Page Counter */}
-      <div className="absolute bottom-8 right-8 text-white text-sm font-medium z-20">
-        <div className="flex space-x-4">
-          <span>01</span>
-          <span className="text-white/50">03</span>
-        </div>
-      </div>
+      {/* Custom CSS for animations */}
+      <style>{`
+        @keyframes ken-burns {
+          0% { transform: scale(1); }
+          100% { transform: scale(1.1); }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        
+        .animate-ken-burns {
+          animation: ken-burns 6s ease-in-out infinite alternate;
+        }
+        
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };
