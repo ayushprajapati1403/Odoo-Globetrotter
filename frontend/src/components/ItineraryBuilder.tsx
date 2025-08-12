@@ -22,10 +22,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
 import { ItineraryService, TripStop, TripActivity, City, Activity } from '../services/itineraryService';
 import { canEditTrip } from '../utils/permissions';
-import TripSuggestions from './TripSuggestions';
+
 import TransportDetails from './TransportDetails';
 import AccommodationDetails from './AccommodationDetails';
 import { BudgetService } from '../services/budgetService';
+import { getUserCurrencySymbol } from '../utils/currencyUtils';
 
 interface Trip {
   id: string;
@@ -58,6 +59,7 @@ const ItineraryBuilder: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [accommodationCount, setAccommodationCount] = useState(0);
+  const [userCurrencySymbol, setUserCurrencySymbol] = useState<string>('$');
   
   // Modal states
   const [showCityModal, setShowCityModal] = useState(false);
@@ -261,6 +263,7 @@ const ItineraryBuilder: React.FC = () => {
     if (tripId && user) {
       fetchTripData();
       fetchAccommodationCount();
+      fetchUserCurrency();
     }
   }, [tripId, user]);
 
@@ -297,6 +300,18 @@ const ItineraryBuilder: React.FC = () => {
     } catch (error) {
       console.error('Error fetching accommodation count:', error);
       setAccommodationCount(0);
+    }
+  };
+
+  const fetchUserCurrency = async () => {
+    if (!user) return;
+    
+    try {
+      const symbol = await getUserCurrencySymbol(user.id);
+      setUserCurrencySymbol(symbol);
+    } catch (error) {
+      console.error('Error fetching user currency:', error);
+      setUserCurrencySymbol('$');
     }
   };
 
@@ -951,9 +966,6 @@ const ItineraryBuilder: React.FC = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Trip Suggestions */}
-            <TripSuggestions onTripCloned={(tripId) => navigate(`/itinerary/${tripId}`)} />
-            
             {/* Trip Stats */}
             <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -1000,8 +1012,7 @@ const ItineraryBuilder: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Budget</span>
                     <span className="font-medium">
-                      {trip.currency === 'USD' ? '$' : trip.currency === 'EUR' ? '€' : trip.currency}
-                      {trip.budget.toLocaleString()}
+                      {userCurrencySymbol}{trip.budget.toLocaleString()}
                     </span>
                   </div>
                 )}

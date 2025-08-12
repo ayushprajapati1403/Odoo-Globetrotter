@@ -30,6 +30,7 @@ import {
   isAdmin 
 } from '../utils/permissions';
 import TripSuggestions from './TripSuggestions';
+import { getUserCurrencySymbol } from '../utils/currencyUtils';
 
 interface SortOption {
   value: string;
@@ -53,6 +54,7 @@ const MyTrips: React.FC = () => {
   const [sortBy, setSortBy] = useState('startDate-desc');
   const [filterBy, setFilterBy] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
+  const [userCurrencySymbol, setUserCurrencySymbol] = useState<string>('$');
 
   const sortOptions: SortOption[] = [
     { value: 'startDate-desc', label: 'Start Date (Newest)' },
@@ -72,6 +74,19 @@ const MyTrips: React.FC = () => {
     { value: 'public', label: 'Public' },
     { value: 'private', label: 'Private' }
   ];
+
+  // Fetch user's currency symbol
+  const fetchUserCurrency = async () => {
+    if (!user) return;
+    
+    try {
+      const symbol = await getUserCurrencySymbol(user.id);
+      setUserCurrencySymbol(symbol);
+    } catch (error) {
+      console.error('Error fetching user currency:', error);
+      setUserCurrencySymbol('$');
+    }
+  };
 
   // Test database connection and table existence
   const testDatabaseConnection = async () => {
@@ -124,6 +139,7 @@ const MyTrips: React.FC = () => {
       console.log('User authenticated, fetching trips...');
       testDatabaseConnection();
       fetchTrips();
+      fetchUserCurrency();
     } else {
       console.log('No user found, cannot fetch trips');
     }
@@ -328,11 +344,11 @@ const MyTrips: React.FC = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 pt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B5CF6] mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your trips...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+            <p className="text-white/80">Loading your trips...</p>
           </div>
         </div>
       </div>
@@ -342,16 +358,16 @@ const MyTrips: React.FC = () => {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 pt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center py-20">
             <div className="mb-8">
               <X className="h-24 w-24 text-red-400 mx-auto mb-6" />
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Error Loading Trips</h2>
-              <p className="text-gray-600 text-lg mb-8">{error}</p>
+              <h2 className="text-3xl font-bold text-white mb-4">Error Loading Trips</h2>
+              <p className="text-white/80 text-lg mb-8">{error}</p>
               <button 
                 onClick={fetchTrips}
-                className="bg-[#8B5CF6] text-white px-6 py-3 rounded-lg hover:bg-[#8B5CF6]/90 transition-colors"
+                className="bg-gradient-to-r from-cyan-500 to-emerald-500 text-white px-6 py-3 rounded-lg hover:from-cyan-400 hover:to-emerald-400 transition-all duration-300"
               >
                 Try Again
               </button>
@@ -365,13 +381,13 @@ const MyTrips: React.FC = () => {
   // No trips state
   if (trips.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 pt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center py-20">
             <div className="mb-8">
-              <Plane className="h-24 w-24 text-gray-400 mx-auto mb-6" />
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">No Trips Yet</h2>
-              <p className="text-gray-600 text-lg mb-8">
+              <Plane className="h-24 w-24 text-cyan-400 mx-auto mb-6" />
+              <h2 className="text-3xl font-bold text-white mb-4">No Trips Yet</h2>
+              <p className="text-white/80 text-lg mb-8">
                 You haven't created any trips yet. Start planning your next adventure!
               </p>
               <button 
@@ -379,7 +395,7 @@ const MyTrips: React.FC = () => {
                   console.log('Create Your First Trip button clicked - redirecting to /create-trip');
                   navigate('/create-trip');
                 }}
-                className="bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:from-[#8B5CF6]/90 hover:to-purple-500/90 transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center space-x-2 mx-auto"
+                className="bg-gradient-to-r from-cyan-500 to-emerald-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:from-cyan-400 hover:to-emerald-400 transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center space-x-2 mx-auto"
               >
                 <Plus className="h-5 w-5" />
                 <span>Create Your First Trip</span>
@@ -392,11 +408,12 @@ const MyTrips: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 pt-16">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 pt-16">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 w-32 h-32 bg-[#42eff5]/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-32 right-16 w-40 h-40 bg-[#42eff5]/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-cyan-400/20 to-blue-500/20 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute bottom-32 right-16 w-40 h-40 bg-gradient-to-r from-emerald-400/20 to-teal-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-400/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -404,64 +421,68 @@ const MyTrips: React.FC = () => {
         <div className="mb-12">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">My Trips</h1>
-              <p className="text-gray-600 text-lg">Manage and explore your travel adventures</p>
+              <h1 className="text-6xl lg:text-7xl font-bold tracking-wider text-white mb-4">
+                MY TRIPS
+              </h1>
+              <p className="text-xl lg:text-2xl leading-relaxed max-w-3xl text-white/80">
+                Manage and explore your travel adventures with style and sophistication
+              </p>
             </div>
-                          <button 
-                onClick={() => {
-                  console.log('Create New Trip button clicked - redirecting to /create-trip');
-                  navigate('/create-trip');
-                }}
-                className="mt-4 lg:mt-0 bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white px-6 py-3 rounded-full font-semibold hover:from-[#8B5CF6]/90 hover:to-purple-500/90 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2"
-              >
-                <Plus className="h-5 w-5" />
-                <span>Create New Trip</span>
-              </button>
+            <button 
+              onClick={() => {
+                console.log('Create New Trip button clicked - redirecting to /create-trip');
+                navigate('/create-trip');
+              }}
+              className="mt-6 lg:mt-0 group bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 shadow-2xl"
+            >
+              <Plus className="h-5 w-5 transition-transform duration-300 group-hover:rotate-90" />
+              <span>Create New Trip</span>
+            </button>
           </div>
 
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 shadow-2xl hover:bg-white/15 transition-all duration-300 hover:border-cyan-400/50">
               <div className="flex items-center space-x-3">
-                <div className="bg-[#8B5CF6]/20 p-3 rounded-xl">
-                  <Plane className="h-6 w-6 text-[#8B5CF6]" />
+                <div className="bg-gradient-to-r from-cyan-500 to-blue-500 p-3 rounded-xl">
+                  <Plane className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">{stats.totalTrips}</div>
-                  <div className="text-gray-600 text-sm">Total Trips</div>
+                  <div className="text-2xl font-bold text-white">{stats.totalTrips}</div>
+                  <div className="text-white/70 text-sm">Total Trips</div>
                 </div>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 shadow-2xl hover:bg-white/15 transition-all duration-300 hover:border-emerald-400/50">
               <div className="flex items-center space-x-3">
-                <div className="bg-green-500/20 p-3 rounded-xl">
-                  <Calendar className="h-6 w-6 text-green-500" />
+                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-3 rounded-xl">
+                  <Calendar className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">{stats.upcomingTrips}</div>
-                  <div className="text-gray-600 text-sm">Upcoming</div>
+                  <div className="text-2xl font-bold text-white">{stats.upcomingTrips}</div>
+                  <div className="text-white/70 text-sm">Upcoming</div>
                 </div>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 shadow-2xl hover:bg-white/15 transition-all duration-300 hover:border-purple-400/50">
               <div className="flex items-center space-x-3">
-                <div className="bg-gray-500/20 p-3 rounded-xl">
-                  <MapPin className="h-6 w-6 text-gray-500" />
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3 rounded-xl">
+                  <MapPin className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">{stats.pastTrips}</div>
-                  <div className="text-gray-600 text-sm">Completed</div>
+                  <div className="text-2xl font-bold text-white">{stats.pastTrips}</div>
+                  <div className="text-white/70 text-sm">Completed</div>
                 </div>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 shadow-2xl hover:bg-white/15 transition-all duration-300 hover:border-cyan-400/50">
               <div className="flex items-center space-x-3">
-                <div className="bg-[#8B5CF6]/20 p-3 rounded-xl">
-                  <DollarSign className="h-6 w-6 text-[#8B5CF6]" />
+                <div className="bg-gradient-to-r from-cyan-500 to-emerald-500 p-3 rounded-xl">
+                  <DollarSign className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">${stats.totalCost.toLocaleString()}</div>
-                  <div className="text-gray-600 text-sm">Total Budget</div>
+                  <div className="text-2xl font-bold text-white">{userCurrencySymbol}{stats.totalCost.toLocaleString()}</div>
+                  <div className="text-white/70 text-sm">Total Budget</div>
                 </div>
               </div>
             </div>
@@ -471,13 +492,13 @@ const MyTrips: React.FC = () => {
           <div className="flex flex-col lg:flex-row gap-4 mb-8">
             {/* Search Bar */}
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/50" />
               <input
                 type="text"
                 placeholder="Search trips by name or description"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:border-cyan-400 focus:ring-cyan-400/50 transition-all duration-300"
               />
             </div>
 
@@ -486,15 +507,15 @@ const MyTrips: React.FC = () => {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-xl text-gray-900 px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                className="appearance-none bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:border-cyan-400 focus:ring-cyan-400/50 transition-all duration-300"
               >
                 {sortOptions.map(option => (
-                  <option key={option.value} value={option.value} className="bg-white">
+                  <option key={option.value} value={option.value} className="bg-slate-800 text-white">
                     {option.label}
                   </option>
                 ))}
               </select>
-              <SortAsc className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500 pointer-events-none" />
+              <SortAsc className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/50 pointer-events-none" />
             </div>
 
             {/* Filter Dropdown */}
@@ -502,15 +523,15 @@ const MyTrips: React.FC = () => {
               <select
                 value={filterBy}
                 onChange={(e) => setFilterBy(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-xl text-gray-900 px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50 transition-all duration-300"
+                className="appearance-none bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:border-cyan-400 focus:ring-cyan-400/50 transition-all duration-300"
               >
                 {filterOptions.map(option => (
-                  <option key={option.value} value={option.value} className="bg-white">
+                  <option key={option.value} value={option.value} className="bg-slate-800 text-white">
                     {option.label}
                   </option>
                 ))}
               </select>
-              <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500 pointer-events-none" />
+              <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/50 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -518,9 +539,9 @@ const MyTrips: React.FC = () => {
         {/* Trip Cards Grid */}
         {filteredAndSortedTrips.length === 0 ? (
           <div className="text-center py-12">
-            <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No trips found</h3>
-            <p className="text-gray-600">Try adjusting your search or filters</p>
+            <Search className="h-16 w-16 text-white/30 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No trips found</h3>
+            <p className="text-white/60">Try adjusting your search or filters</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -529,7 +550,7 @@ const MyTrips: React.FC = () => {
               return (
                 <div
                   key={trip.id}
-                  className="group bg-white backdrop-blur-sm border border-gray-200 rounded-2xl overflow-hidden hover:shadow-xl hover:border-[#42eff5]/30 transition-all duration-300 hover:-translate-y-1"
+                  className="group bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl overflow-hidden hover:shadow-2xl hover:border-cyan-400/50 hover:bg-white/15 transition-all duration-500 hover:-translate-y-2"
                 >
                   {/* Trip Image */}
                   <div className="relative h-48 overflow-hidden">
@@ -537,35 +558,33 @@ const MyTrips: React.FC = () => {
                       <img
                         src={`${supabase.storage.from('trip').getPublicUrl(trip.cover_photo_url).data.publicUrl}`}
                         alt={trip.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         loading="lazy"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[#8B5CF6] to-purple-500 flex items-center justify-center">
+                      <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center">
                         <Plane className="h-16 w-16 text-white opacity-80" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                     
                     {/* Trip Status Badge */}
                     <div className="absolute top-4 left-4">
-                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      <div className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
                         trip.is_public 
-                          ? 'bg-green-500/90 text-white' 
-                          : 'bg-gray-500/90 text-white'
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border border-emerald-400/50' 
+                          : 'bg-gradient-to-r from-gray-500 to-slate-500 text-white border border-gray-400/50'
                       }`}>
                         {trip.is_public ? <Globe className="h-3 w-3 inline mr-1" /> : <Lock className="h-3 w-3 inline mr-1" />}
                         {trip.is_public ? 'Public' : 'Private'}
                       </div>
                     </div>
 
-
-                    
                     {/* Quick Actions Overlay */}
                     <div className="absolute bottom-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <button 
                         onClick={() => navigate(`/itinerary/${trip.id}`)}
-                        className="bg-white/90 backdrop-blur-sm text-gray-900 p-2 rounded-full hover:bg-[#42eff5] hover:text-white transition-colors"
+                        className="bg-white/20 backdrop-blur-sm text-white p-2 rounded-full hover:bg-cyan-400 hover:text-white transition-colors border border-white/30"
                         title="Edit Itinerary"
                       >
                         <MapPin className="h-4 w-4" />
@@ -573,7 +592,7 @@ const MyTrips: React.FC = () => {
                       {canEditTripLocal(trip) && (
                         <button 
                           onClick={() => navigate(`/edit-trip/${trip.id}`)}
-                          className="bg-white/90 backdrop-blur-sm text-gray-900 p-2 rounded-full hover:bg-[#42eff5] hover:text-white transition-colors"
+                          className="bg-white/20 backdrop-blur-sm text-white p-2 rounded-full hover:bg-cyan-400 hover:text-white transition-colors border border-white/30"
                           title="Edit Trip"
                         >
                           <Edit className="h-4 w-4" />
@@ -582,60 +601,65 @@ const MyTrips: React.FC = () => {
                       {canDeleteTripLocal(trip) && (
                         <button 
                           onClick={() => handleDeleteTrip(trip.id)}
-                          className="bg-white/90 backdrop-blur-sm text-gray-900 p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors"
+                          className="bg-white/20 backdrop-blur-sm text-white p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors border border-white/30"
                           title="Delete Trip"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
-                                              <Link
-                          to={`/trip/${trip.id}/share`}
-                          className="bg-white/90 backdrop-blur-sm text-gray-900 p-2 rounded-full hover:bg-[#42eff5] hover:text-white transition-colors"
-                          title="Share Trip"
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </Link>
+                      <Link
+                        to={`/trip/${trip.id}/share`}
+                        className="bg-white/20 backdrop-blur-sm text-white p-2 rounded-full hover:bg-cyan-400 hover:text-white transition-colors border border-white/30"
+                        title="Share Trip"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Link>
                     </div>
                   </div>
 
                   {/* Trip Details */}
                   <div className="p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-[#42eff5] transition-colors">
+                    <h3 className="text-lg font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">
                       {truncateText(trip.name, 40)}
                     </h3>
                     
                     {trip.description && (
-                      <p className="text-gray-600 text-sm mb-3">
+                      <p className="text-white/70 text-sm mb-3">
                         {truncateText(trip.description, 60)}
                       </p>
                     )}
 
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center space-x-2 text-gray-600 text-sm">
-                        <Calendar className="h-4 w-4 text-[#8B5CF6]" />
+                      <div className="flex items-center space-x-2 text-white/70 text-sm">
+                        <Calendar className="h-4 w-4 text-cyan-400" />
                         <span>{formatDateRange(trip.start_date, trip.end_date)}</span>
                       </div>
                       {trip.total_estimated_cost && (
-                        <div className="flex items-center space-x-2 text-gray-600 text-sm">
-                          <DollarSign className="h-4 w-4 text-[#8B5CF6]" />
-                          <span>${trip.total_estimated_cost.toLocaleString()} {trip.currency}</span>
+                        <div className="flex items-center space-x-2 text-white/70 text-sm">
+                          <DollarSign className="h-4 w-4 text-emerald-400" />
+                          <span>{userCurrencySymbol}{trip.total_estimated_cost.toLocaleString()}</span>
                         </div>
                       )}
-
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex space-x-2">
                       <Link
                         to={`/itinerary/${trip.id}`}
-                        className="flex-1 bg-[#8B5CF6] text-white py-2 px-4 rounded-lg font-medium hover:bg-[#8B5CF6]/90 transition-colors text-sm"
+                        className="flex-1 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white py-2 px-4 rounded-lg font-medium hover:from-cyan-400 hover:to-emerald-400 transition-colors text-sm"
                       >
                         View Itinerary
+                      </Link>
+                      <Link
+                        to={`/calendar/${trip.id}`}
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 px-4 rounded-lg font-medium hover:from-purple-400 hover:to-pink-400 transition-colors text-sm"
+                      >
+                        Calendar
                       </Link>
                       {canEditTripLocal(trip) && (
                         <button 
                           onClick={() => navigate(`/edit-trip/${trip.id}`)}
-                          className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                          className="bg-white/20 text-white py-2 px-4 rounded-lg hover:bg-white/30 transition-colors border border-white/30"
                           title="Edit Trip"
                         >
                           <Edit className="h-4 w-4" />
@@ -651,18 +675,18 @@ const MyTrips: React.FC = () => {
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 border border-white/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <div className="text-center">
-                <Trash2 className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Trip</h3>
-                <p className="text-gray-600 mb-6">
+                <Trash2 className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">Delete Trip</h3>
+                <p className="text-white/70 mb-6">
                   Are you sure you want to delete this trip? This action cannot be undone.
                 </p>
                 <div className="flex space-x-3">
                   <button
                     onClick={() => setShowDeleteModal(null)}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                    className="flex-1 bg-white/20 text-white py-3 px-4 rounded-lg hover:bg-white/30 transition-colors border border-white/30"
                   >
                     Cancel
                   </button>
@@ -679,7 +703,7 @@ const MyTrips: React.FC = () => {
         )}
 
         {/* Trip Suggestions */}
-        <div className="mt-8 pt-8 border-t border-gray-200">
+        <div className="mt-12 pt-8 border-t border-white/20">
           <TripSuggestions onTripCloned={(tripId) => {
             console.log('Trip Cloned! - Your new trip has been created successfully');
             fetchTrips(); // Refresh the trips list
@@ -687,17 +711,17 @@ const MyTrips: React.FC = () => {
         </div>
 
         {/* Developer Tools */}
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Developer Tools</h3>
+        <div className="mt-8 pt-8 border-t border-white/20">
+          <h3 className="text-lg font-semibold text-white mb-4">Developer Tools</h3>
           <div className="flex space-x-3">
             <button
               onClick={testDatabaseConnection}
-              className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+              className="bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 text-cyan-400 px-4 py-2 rounded-lg hover:from-cyan-400/30 hover:to-emerald-400/30 transition-colors text-sm border border-cyan-400/30"
             >
               Test Database Connection
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-white/50 mt-2">
             Check the browser console for database test results
           </p>
         </div>

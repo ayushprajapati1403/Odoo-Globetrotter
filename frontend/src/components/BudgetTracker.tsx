@@ -15,89 +15,10 @@ import {
   Loader2
 } from 'lucide-react';
 
-// Mock Services (replace with your actual services)
-const BudgetService = {
-  getUserCurrency: async () => ({
-    id: 'usd-id',
-    code: 'USD',
-    symbol: '$',
-    exchange_rate_to_usd: 1.0
-  }),
-  
-  getUserTripBudgets: async () => {
-    // Simulated data - replace with actual API call
-    return [
-      {
-        trip_id: '1',
-        trip_name: 'European Adventure',
-        budget: 5000,
-        total_estimated_cost: 4500,
-        currency: 'USD',
-        status: 'within_budget'
-      },
-      {
-        trip_id: '2',
-        trip_name: 'Asian Tour',
-        budget: 3000,
-        total_estimated_cost: 3500,
-        currency: 'USD',
-        status: 'over_budget'
-      },
-      {
-        trip_id: '3',
-        trip_name: 'Weekend Getaway',
-        budget: null,
-        total_estimated_cost: 800,
-        currency: 'USD',
-        status: 'no_budget'
-      }
-    ];
-  },
-  
-  getTripCostDetails: async (tripId: string) => {
-    // Simulated data - replace with actual API call
-    return {
-      accommodations: [
-        {
-          trip_stop_id: '1',
-          city_name: 'Paris',
-          nights: 3,
-          price_per_night: 120,
-          total_cost: 360,
-          original_currency: 'EUR',
-          currency_exchange_rate: 0.92
-        },
-        {
-          trip_stop_id: '2',
-          city_name: 'Rome',
-          nights: 2,
-          price_per_night: 100,
-          total_cost: 200,
-          original_currency: 'EUR',
-          currency_exchange_rate: 0.92
-        }
-      ],
-      transports: [
-        {
-          from_city: 'London',
-          to_city: 'Paris',
-          mode: 'Train',
-          cost: 150,
-          original_currency: 'GBP',
-          currency_exchange_rate: 0.79
-        },
-        {
-          from_city: 'Paris',
-          to_city: 'Rome',
-          mode: 'Flight',
-          cost: 180,
-          original_currency: 'EUR',
-          currency_exchange_rate: 0.92
-        }
-      ]
-    };
-  }
-};
+// Import actual services
+import { BudgetService } from '../services/budgetService';
+import { CurrencyService, Currency } from '../services/currencyService';
+import { useAuth } from '../contexts/AuthContext';
 
 // Mock Toast Hook
 const useToast = () => ({
@@ -133,22 +54,33 @@ interface TripBudget {
   total_estimated_cost: number | null;
   currency: string;
   status: 'over_budget' | 'within_budget' | 'no_budget';
-  accommodation_costs?: AccommodationCost[];
-  transport_costs?: TransportCost[];
-  total_accommodation_usd?: number;
-  total_transport_usd?: number;
+  accommodation_costs?: Array<{
+    id: string;
+    name: string;
+    city: string;
+    price_per_night: number;
+    currency_id: string;
+    originalCurrency: Currency;
+    convertedCost: number;
+  }>;
+  transport_costs?: Array<{
+    id: string;
+    from_city: string;
+    to_city: string;
+    mode: string;
+    cost: number;
+    currency_id: string;
+    originalCurrency: Currency;
+    convertedCost: number;
+  }>;
   total_accommodation_user_currency?: number;
   total_transport_user_currency?: number;
 }
 
-interface Currency {
-  id: string;
-  code: string;
-  symbol: string;
-  exchange_rate_to_usd: number;
-}
+// Remove local Currency interface since we're importing it from CurrencyService
 
 const BudgetTracker: React.FC = () => {
+  const { user } = useAuth();
   const { showSuccess, showError } = useToast();
   
   const [tripBudgets, setTripBudgets] = useState<TripBudget[]>([]);
@@ -160,14 +92,18 @@ const BudgetTracker: React.FC = () => {
   const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    if (user) {
+      fetchInitialData();
+    }
+  }, [user]);
 
   const fetchInitialData = async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
       // Fetch user currency
-      const userCurrencyData = await BudgetService.getUserCurrency();
+      const userCurrencyData = await CurrencyService.getUserCurrency(user.id);
       setUserCurrency(userCurrencyData);
       
       // Fetch trip budgets
@@ -182,18 +118,24 @@ const BudgetTracker: React.FC = () => {
   };
 
   const fetchTripCostDetails = async (tripId: string) => {
+    if (!user) return;
+    
     try {
       setLoadingDetails(tripId);
       
-      // Fetch accommodation and transport costs for the trip
-      const costDetails = await BudgetService.getTripCostDetails(tripId);
+      // Fetch complete budget data for the trip using BudgetService
+      const budgetData = await BudgetService.getTripBudget(tripId, user.id);
       
-      // Convert all costs to USD and then to user's currency
-      const processedDetails = processCostDetails(costDetails);
-      
+      // Update the trip with the detailed budget information
       setTripBudgets(prev => prev.map(trip => 
         trip.trip_id === tripId 
-          ? { ...trip, ...processedDetails }
+          ? { 
+              ...trip, 
+              accommodation_costs: budgetData.accommodations,
+              transport_costs: budgetData.transportCosts,
+              total_accommodation_user_currency: budgetData.accommodations.reduce((sum, acc) => sum + acc.convertedCost, 0),
+              total_transport_user_currency: budgetData.transportCosts.reduce((sum, trans) => sum + trans.convertedCost, 0)
+            }
           : trip
       ));
     } catch (error) {
@@ -204,50 +146,7 @@ const BudgetTracker: React.FC = () => {
     }
   };
 
-  const processCostDetails = (details: any) => {
-    if (!userCurrency) return details;
 
-    const accommodationCosts = details.accommodations?.map((acc: any) => {
-      const costInUSD = acc.price_per_night * acc.nights / (acc.currency_exchange_rate || 1);
-      const userCurrencyCost = costInUSD * userCurrency.exchange_rate_to_usd;
-      
-      return {
-        ...acc,
-        converted_cost_usd: costInUSD,
-        user_currency_cost: userCurrencyCost
-      };
-    }) || [];
-
-    const transportCosts = details.transports?.map((trans: any) => {
-      const costInUSD = trans.cost / (trans.currency_exchange_rate || 1);
-      const userCurrencyCost = costInUSD * userCurrency.exchange_rate_to_usd;
-      
-      return {
-        ...trans,
-        converted_cost_usd: costInUSD,
-        user_currency_cost: userCurrencyCost
-      };
-    }) || [];
-
-    const totalAccommodationUSD = accommodationCosts.reduce(
-      (sum: number, acc: any) => sum + acc.converted_cost_usd, 
-      0
-    );
-    
-    const totalTransportUSD = transportCosts.reduce(
-      (sum: number, trans: any) => sum + trans.converted_cost_usd, 
-      0
-    );
-
-    return {
-      accommodation_costs: accommodationCosts,
-      transport_costs: transportCosts,
-      total_accommodation_usd: totalAccommodationUSD,
-      total_transport_usd: totalTransportUSD,
-      total_accommodation_user_currency: totalAccommodationUSD * userCurrency.exchange_rate_to_usd,
-      total_transport_user_currency: totalTransportUSD * userCurrency.exchange_rate_to_usd
-    };
-  };
 
   const handleTripExpand = async (tripId: string) => {
     if (expandedTrip === tripId) {
@@ -308,6 +207,11 @@ const BudgetTracker: React.FC = () => {
 
   const formatCurrency = (amount: number | null | undefined, currencyCode?: string) => {
     if (amount === null || amount === undefined) return 'Not set';
+    
+    // If userCurrency is available, use it for formatting
+    if (userCurrency && !currencyCode) {
+      return CurrencyService.formatCurrency(amount, userCurrency);
+    }
     
     const code = currencyCode || userCurrency?.code || 'USD';
     const symbols: { [key: string]: string } = {
@@ -572,12 +476,12 @@ const BudgetTracker: React.FC = () => {
                               <div className="space-y-2 max-h-48 overflow-y-auto">
                                 {trip.accommodation_costs.map((acc, idx) => (
                                   <div key={idx} className="text-sm border-l-2 border-blue-200 pl-3 py-1">
-                                    <div className="font-medium text-gray-800">{acc.city_name}</div>
+                                    <div className="font-medium text-gray-800">{acc.city}</div>
                                     <div className="text-gray-600">
-                                      {acc.nights} nights × {formatCurrency(acc.price_per_night, acc.original_currency)}
+                                      1 night × {formatCurrency(acc.price_per_night, acc.originalCurrency.code)}
                                     </div>
                                     <div className="text-gray-700 font-medium">
-                                      = {formatCurrency(acc.user_currency_cost)}
+                                      = {formatCurrency(acc.convertedCost)}
                                     </div>
                                   </div>
                                 ))}
@@ -609,10 +513,10 @@ const BudgetTracker: React.FC = () => {
                                       {trans.from_city} → {trans.to_city}
                                     </div>
                                     <div className="text-gray-600">
-                                      {trans.mode} - {formatCurrency(trans.cost, trans.original_currency)}
+                                      {trans.mode} - {formatCurrency(trans.cost, trans.originalCurrency.code)}
                                     </div>
                                     <div className="text-gray-700 font-medium">
-                                      = {formatCurrency(trans.user_currency_cost)}
+                                      = {formatCurrency(trans.convertedCost)}
                                     </div>
                                   </div>
                                 ))}

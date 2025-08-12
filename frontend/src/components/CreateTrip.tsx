@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useToast } from './Toast';
+import { getUserCurrencySymbol } from '../utils/currencyUtils';
 
 interface TripFormData {
   name: string;
@@ -55,6 +56,24 @@ const CreateTrip: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [userCurrencySymbol, setUserCurrencySymbol] = useState<string>('$');
+
+  // Fetch user's currency symbol
+  useEffect(() => {
+    const fetchUserCurrency = async () => {
+      if (!user) return;
+      
+      try {
+        const symbol = await getUserCurrencySymbol(user.id);
+        setUserCurrencySymbol(symbol);
+      } catch (error) {
+        console.error('Error fetching user currency:', error);
+        setUserCurrencySymbol('$');
+      }
+    };
+
+    fetchUserCurrency();
+  }, [user]);
 
   // Capitalize first letter of each word
   const capitalizeWords = (str: string) => {
@@ -410,7 +429,9 @@ const CreateTrip: React.FC = () => {
                   Budget <span className="text-gray-500">(optional)</span>
                 </label>
                 <div className="flex items-center space-x-2">
-                  <DollarSign className="h-5 w-5 text-gray-500" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#8B5CF6] to-purple-500 flex items-center justify-center text-white text-sm font-semibold">
+                    {userCurrencySymbol}
+                  </div>
                   <input
                     type="number"
                     value={formData.budget}

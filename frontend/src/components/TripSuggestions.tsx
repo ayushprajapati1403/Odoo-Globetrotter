@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from './Toast';
 import { ItineraryService, AdminTrip } from '../services/itineraryService';
 import { supabase } from '../lib/supabase';
+import { getUserCurrencySymbol } from '../utils/currencyUtils';
 
 interface TripSuggestionsProps {
   onTripCloned?: (tripId: string) => void;
@@ -32,6 +33,7 @@ const TripSuggestions: React.FC<TripSuggestionsProps> = ({ onTripCloned }) => {
   const [cloningTripId, setCloningTripId] = useState<string | null>(null);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<AdminTrip | null>(null);
+  const [userCurrencySymbol, setUserCurrencySymbol] = useState<string>('$');
   const [cloneForm, setCloneForm] = useState({
     name: '',
     start_date: '',
@@ -42,8 +44,21 @@ const TripSuggestions: React.FC<TripSuggestionsProps> = ({ onTripCloned }) => {
   useEffect(() => {
     if (user) {
       fetchSuggestions();
+      fetchUserCurrency();
     }
   }, [user]);
+
+  const fetchUserCurrency = async () => {
+    if (!user) return;
+    
+    try {
+      const symbol = await getUserCurrencySymbol(user.id);
+      setUserCurrencySymbol(symbol);
+    } catch (error) {
+      console.error('Error fetching user currency:', error);
+      setUserCurrencySymbol('$');
+    }
+  };
 
   const fetchSuggestions = async () => {
     try {
@@ -216,7 +231,7 @@ const TripSuggestions: React.FC<TripSuggestionsProps> = ({ onTripCloned }) => {
                     {trip.fixed_cost && (
                       <div className="bg-green-100 px-2 py-1 rounded-full">
                         <span className="text-xs text-green-700 font-medium">
-                          ${trip.fixed_cost.toFixed(2)}
+                          {userCurrencySymbol}{trip.fixed_cost.toFixed(2)}
                         </span>
                       </div>
                     )}
@@ -243,7 +258,7 @@ const TripSuggestions: React.FC<TripSuggestionsProps> = ({ onTripCloned }) => {
                   {trip.fixed_cost && (
                     <div className="flex items-center space-x-2 text-xs text-green-600 font-medium">
                       <DollarSign className="h-3 w-3" />
-                      <span>${trip.fixed_cost.toFixed(2)}</span>
+                      <span>{userCurrencySymbol}{trip.fixed_cost.toFixed(2)}</span>
                     </div>
                   )}
 

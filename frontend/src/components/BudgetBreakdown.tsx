@@ -23,6 +23,20 @@ import { BudgetService, type BudgetData } from '../services/budgetService';
 import { CurrencyService, type Currency } from '../services/currencyService';
 import { useToast } from './Toast';
 import { useAuth } from '../contexts/AuthContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: {
+      finalY: number;
+    };
+  }
+}
+
+
 
 interface BudgetBreakdownProps {
   tripId?: string;
@@ -44,6 +58,7 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId: propTripId, t
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'daily' | 'category' | 'detailed'>('overview');
   const [showAlerts, setShowAlerts] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const categoryIcons: { [key: string]: any } = {
     'Transport': Plane,
@@ -134,9 +149,306 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId: propTripId, t
     });
   };
 
-  const handleExportBudget = () => {
-    // In real app, this would generate a PDF or CSV
-    showInfo('Export functionality would be implemented here');
+  const handleExportBudget = async () => {
+    if (!budgetData) {
+      showError('No budget data available for export');
+      return;
+    }
+    
+    try {
+      setExporting(true);
+      generateBudgetPDF();
+      showSuccess('Budget exported successfully!');
+    } catch (error) {
+      console.error('Error exporting budget:', error);
+      showError('Failed to export budget');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const generateBudgetPDF = () => {
+    if (!budgetData) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 20;
+    let yPosition = 20;
+
+    // Add header
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text('Trip Budget Breakdown', pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 15;
+    
+    // Add trip info
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(52, 73, 94);
+    doc.text(`Trip: ${tripName || 'Trip Budget'}`, margin, yPosition);
+    yPosition += 8;
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, margin, yPosition);
+    yPosition += 8;
+    doc.text(`Currency: ${budgetData.userCurrency.name} (${budgetData.userCurrency.code})`, margin, yPosition);
+    yPosition += 20;
+
+    // Budget Summary Section
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text('Budget Summary', margin, yPosition);
+    yPosition += 15;
+
+    // Budget summary table
+    const summaryData = [
+      ['Total Budget', budgetData.totalBudget ? formatCurrency(budgetData.totalBudget) : 'Not Set'],
+      ['Estimated Cost', formatCurrency(budgetData.totalEstimatedCost || 0)],
+      ['Status', budgetStatus?.status || 'Unknown'],
+      ['Difference', budgetStatus ? formatCurrency(Math.abs(budgetStatus.difference)) : 'N/A']
+    ];
+
+    if (budgetStatus?.isOverBudget) {
+      summaryData[2][1] = `Over Budget (+${formatCurrency(budgetStatus.difference)})`;
+    }
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Item', 'Amount']],
+      body: summaryData,
+      theme: 'grid',
+      headStyles: { fillColor: [139, 92, 246], textColor: 255 },
+      styles: { fontSize: 10 },
+      margin: { left: margin, right: margin }
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+    // Check if we need a new page
+    if (yPosition > doc.internal.pageSize.height - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Category Breakdown Section
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text('Category Breakdown', margin, yPosition);
+    yPosition += 15;
+
+    const categoryData = Object.entries(budgetData.categories).map(([category, data]) => [
+      category,
+      formatCurrency(data.estimated),
+      data.budgeted > 0 ? formatCurrency(data.budgeted) : 'Not set',
+      data.budgeted > 0 ? `${((data.estimated / data.budgeted) * 100).toFixed(1)}%` : 'N/A'
+    ]);
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Category', 'Estimated', 'Budgeted', 'Usage %']],
+      body: categoryData,
+      theme: 'grid',
+      headStyles: { fillColor: [52, 152, 219], textColor: 255 },
+      styles: { fontSize: 9 },
+      margin: { left: margin, right: margin }
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+    // Check if we need a new page
+    if (yPosition > doc.internal.pageSize.height - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Daily Breakdown Section
+    if (budgetData.perDayCosts.length > 0) {
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(44, 62, 80);
+      doc.text('Daily Breakdown', margin, yPosition);
+      yPosition += 15;
+
+      const dailyData = budgetData.perDayCosts.map(day => [
+        `Day ${day.day}`,
+        formatDate(day.date),
+        day.city,
+        formatCurrency(day.estimated),
+        formatCurrency(day.budgeted)
+      ]);
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Day', 'Date', 'City', 'Estimated', 'Budgeted']],
+        body: dailyData,
+        theme: 'grid',
+        headStyles: { fillColor: [46, 204, 113], textColor: 255 },
+        styles: { fontSize: 8 },
+        margin: { left: margin, right: margin }
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // Check if we need a new page
+    if (yPosition > doc.internal.pageSize.height - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Detailed Costs Section
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text('Detailed Costs', margin, yPosition);
+    yPosition += 15;
+
+    // Accommodation Costs
+    if (budgetData.accommodations.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(52, 73, 94);
+      doc.text('Accommodation Costs', margin, yPosition);
+      yPosition += 10;
+
+      const accData = budgetData.accommodations.map(acc => [
+        acc.name,
+        acc.city,
+        formatCurrency(acc.price_per_night, acc.originalCurrency),
+        formatCurrency(acc.convertedCost),
+        acc.originalCurrency.code
+      ]);
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Accommodation', 'City', 'Price/Night', 'Converted Cost', 'Currency']],
+        body: accData,
+        theme: 'grid',
+        headStyles: { fillColor: [46, 92, 246], textColor: 255 },
+        styles: { fontSize: 8 },
+        margin: { left: margin, right: margin }
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // Check if we need a new page
+    if (yPosition > doc.internal.pageSize.height - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Transport Costs
+    if (budgetData.transportCosts.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(52, 73, 94);
+      doc.text('Transport Costs', margin, yPosition);
+      yPosition += 10;
+
+      const transportData = budgetData.transportCosts.map(transport => [
+        `${transport.from_city} → ${transport.to_city}`,
+        transport.mode,
+        formatCurrency(transport.cost, transport.originalCurrency),
+        formatCurrency(transport.convertedCost),
+        transport.originalCurrency.code
+      ]);
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Route', 'Mode', 'Cost', 'Converted Cost', 'Currency']],
+        body: transportData,
+        theme: 'grid',
+        headStyles: { fillColor: [52, 152, 219], textColor: 255 },
+        styles: { fontSize: 8 },
+        margin: { left: margin, right: margin }
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // Check if we need a new page
+    if (yPosition > doc.internal.pageSize.height - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Activities Costs
+    if (budgetData.activities.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(52, 73, 94);
+      doc.text('Activities Costs', margin, yPosition);
+      yPosition += 10;
+
+      const activityData = budgetData.activities.map(activity => [
+        activity.name,
+        formatCurrency(activity.cost, activity.originalCurrency),
+        formatCurrency(activity.convertedCost),
+        activity.originalCurrency.code
+      ]);
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Activity', 'Cost', 'Converted Cost', 'Currency']],
+        body: activityData,
+        theme: 'grid',
+        headStyles: { fillColor: [155, 89, 182], textColor: 255 },
+        styles: { fontSize: 8 },
+        margin: { left: margin, right: margin }
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // Check if we need a new page
+    if (yPosition > doc.internal.pageSize.height - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Budget Alerts Section
+    if (budgetData.alerts.length > 0) {
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(44, 62, 80);
+      doc.text('Budget Alerts', margin, yPosition);
+      yPosition += 15;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(230, 126, 34);
+      
+      budgetData.alerts.forEach((alert, index) => {
+        if (yPosition > doc.internal.pageSize.height - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`• ${alert}`, margin + 5, yPosition);
+        yPosition += 6;
+      });
+    }
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `Page ${i} of ${totalPages} • Generated by TravelPro • ${new Date().toLocaleString()}`,
+        pageWidth / 2,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Save the PDF
+    const fileName = `budget-breakdown-${tripName?.replace(/[^a-zA-Z0-9]/g, '-') || 'trip'}-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
   };
 
   const getCategoryStatus = (category: any) => {
@@ -209,10 +521,15 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId: propTripId, t
             <div className="flex items-center space-x-3 mt-4 lg:mt-0">
               <button
                 onClick={handleExportBudget}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#8B5CF6]/90 transition-colors"
+                disabled={exporting}
+                className="flex items-center space-x-2 px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#8B5CF6]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Download className="h-4 w-4" />
-                <span>Export Budget</span>
+                {exporting ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span>{exporting ? 'Generating PDF...' : 'Export Budget'}</span>
               </button>
               
               <button 
