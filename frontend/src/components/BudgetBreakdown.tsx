@@ -527,7 +527,7 @@ const BudgetBreakdown: React.FC<BudgetBreakdownProps> = ({ tripId: propTripId, t
                 {exporting ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 ) : (
-                  <Download className="h-4 w-4" />
+                <Download className="h-4 w-4" />
                 )}
                 <span>{exporting ? 'Generating PDF...' : 'Export Budget'}</span>
               </button>

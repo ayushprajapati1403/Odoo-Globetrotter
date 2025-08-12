@@ -526,101 +526,101 @@ const TripCalendar: React.FC<TripCalendarProps> = ({ tripId: propTripId, tripNam
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
+    <div className="space-y-6">
                 {/* Timeline View */}
                 {stops.map((stop, index) => (
                   <div key={stop.id} className="relative">
-                    {/* Timeline Line */}
+          {/* Timeline Line */}
                     {index < stops.length - 1 && (
-                      <div className="absolute left-8 top-20 w-0.5 h-16 bg-gray-300 z-0"></div>
-                    )}
+            <div className="absolute left-8 top-20 w-0.5 h-16 bg-gray-300 z-0"></div>
+          )}
 
-                    {/* Day Card */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                      {/* Day Header */}
-                      <div className="bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                              <Calendar className="h-6 w-6" />
-                            </div>
-                            <div>
-                              <h3 className="text-xl font-bold">
+          {/* Day Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Day Header */}
+            <div className="bg-gradient-to-r from-[#8B5CF6] to-purple-500 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                    <Calendar className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">
                                 Day {index + 1} - {stop.start_date && stop.end_date ? 
                                   `${format(parseISO(stop.start_date), 'MMM d')} - ${format(parseISO(stop.end_date), 'MMM d')}` : 
                                   'Dates TBD'
                                 }
-                              </h3>
+                    </h3>
                               <p className="text-purple-100">
                                 {stop.start_date && stop.end_date ? 
                                   format(parseISO(stop.start_date), 'EEEE, MMMM d, yyyy') : 
                                   'Dates to be determined'
                                 }
                               </p>
-                              <div className="flex items-center space-x-2 mt-1">
-                                <MapPin className="h-4 w-4" />
+                    <div className="flex items-center space-x-2 mt-1">
+                      <MapPin className="h-4 w-4" />
                                 <span className="text-sm">{stop.city?.name || 'Unknown City'}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm text-purple-100">
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-purple-100">
                               {stop.activities?.length || 0} {stop.activities?.length === 1 ? 'activity' : 'activities'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                      {/* Activities */}
-                      <div className="p-6">
+            {/* Activities */}
+            <div className="p-6">
                         {stop.activities && stop.activities.length > 0 ? (
-                          <div className="space-y-3">
+                <div className="space-y-3">
                             {stop.activities.map((activity) => (
-                              <div 
-                                key={activity.id}
-                                className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow group"
-                              >
-                                {/* Time */}
+                    <div 
+                      key={activity.id}
+                      className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow group"
+                    >
+                      {/* Time */}
                                 {activity.start_time && (
-                                  <div className="flex items-center space-x-1 text-[#8B5CF6] font-medium min-w-[60px]">
-                                    <Clock className="h-4 w-4" />
+                        <div className="flex items-center space-x-1 text-[#8B5CF6] font-medium min-w-[60px]">
+                          <Clock className="h-4 w-4" />
                                     <span className="text-sm">{activity.start_time}</span>
-                                  </div>
-                                )}
+                        </div>
+                      )}
 
-                                {/* Activity Details */}
-                                <div className="flex-1">
-                                  <h4 className="font-semibold text-gray-900">{activity.name}</h4>
+                      {/* Activity Details */}
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900">{activity.name}</h4>
                                   {activity.activity?.category && (
                                     <p className="text-sm text-gray-600">{activity.activity.category}</p>
                                   )}
                                   {activity.notes && (
                                     <p className="text-sm text-gray-500 mt-1">{activity.notes}</p>
                                   )}
-                                </div>
+                      </div>
 
-                                {/* Cost */}
+                      {/* Cost */}
                                 {activity.cost && (
-                                  <div className="text-right">
-                                    <div className="font-medium text-gray-900">
+                      <div className="text-right">
+                        <div className="font-medium text-gray-900">
                                       ${activity.cost}
-                                    </div>
-                                  </div>
+                        </div>
+                      </div>
                                 )}
-                              </div>
-                            ))}
-                          </div>
-                                                 ) : (
-                           <div className="text-center py-8 text-gray-500">
-                             <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                             <p>No activities planned for this day</p>
-                           </div>
-                         )}
-                       </div>
-                     </div>
-                   </div>
-                 ))}
-               </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p>No activities planned for this day</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
              )}
           </div>
 
@@ -628,7 +628,7 @@ const TripCalendar: React.FC<TripCalendarProps> = ({ tripId: propTripId, tripNam
           <div className="space-y-6">
             {/* Selected Date Info */}
             {selectedDate && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="bg-[#8B5CF6]/20 p-3 rounded-xl">
                     <Calendar className="h-6 w-6 text-[#8B5CF6]" />
@@ -638,9 +638,9 @@ const TripCalendar: React.FC<TripCalendarProps> = ({ tripId: propTripId, tripNam
                       {formatShortDate(selectedDate)}
                     </h3>
                     <p className="text-sm text-gray-600">{formatDate(selectedDate)}</p>
-                  </div>
-                </div>
-
+      </div>
+            </div>
+            
                 {/* Activities for Selected Date */}
                 <div className="space-y-3">
                   <h4 className="font-medium text-gray-900">Activities</h4>
@@ -671,8 +671,8 @@ const TripCalendar: React.FC<TripCalendarProps> = ({ tripId: propTripId, tripNam
                       <p className="text-sm">No activities planned for this date</p>
                     </div>
                   )}
-                </div>
-              </div>
+            </div>
+          </div>
             )}
 
             {/* Trip Overview */}
@@ -687,24 +687,24 @@ const TripCalendar: React.FC<TripCalendarProps> = ({ tripId: propTripId, tripNam
                       : 'TBD'
                     }
                   </span>
-                </div>
+            </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Cities</span>
                   <span className="font-medium">{stops.length}</span>
-                </div>
+            </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Total Activities</span>
                   <span className="font-medium">
                     {stops.reduce((total, stop) => total + (stop.activities?.length || 0), 0)}
                   </span>
-                </div>
+            </div>
                 {trip.start_date && trip.end_date && (
                   <div className="pt-3 border-t border-gray-200">
                     <div className="text-sm text-gray-600 mb-2">Date Range</div>
                     <div className="text-sm font-medium text-gray-900">
                       {format(parseISO(trip.start_date), 'MMM d')} - {format(parseISO(trip.end_date), 'MMM d, yyyy')}
-                    </div>
-                  </div>
+            </div>
+          </div>
                 )}
               </div>
             </div>
