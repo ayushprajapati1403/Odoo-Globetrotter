@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Plane, Menu, X, ChevronDown, User, Settings, BarChart3, LogOut, Bug } from 'lucide-react';
+import { Plane, Menu, X, ChevronDown, User, Settings, BarChart3, LogOut, Bug, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdmin } from '../utils/permissions';
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -149,6 +150,21 @@ const Navbar: React.FC = () => {
             >
               Contact
             </Link>
+            
+            {/* Admin Dashboard - Only show for admin users */}
+            {user && isAdmin(user) && (
+              <Link
+                to="/admin"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
+                  isActive('/admin')
+                    ? 'text-[#8B5CF6] bg-[#8B5CF6]/10'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Shield className="h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+            )}
           </div>
 
           {/* Auth Section */}
@@ -178,6 +194,19 @@ const Navbar: React.FC = () => {
                       <User className="h-4 w-4" />
                       <span>Profile</span>
                     </Link>
+                    
+                    {/* Admin Dashboard - Only show for admin users */}
+                    {isAdmin(user) && (
+                      <Link
+                        to="/admin"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Shield className="h-4 w-4" />
+                        <span>Admin Dashboard</span>
+                      </Link>
+                    )}
+                    
                     <button
                       onClick={handleDebugTokens}
                       className="flex items-center space-x-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200"
@@ -319,6 +348,22 @@ const Navbar: React.FC = () => {
                 Contact
               </Link>
               
+              {/* Admin Dashboard - Only show for admin users */}
+              {user && isAdmin(user) && (
+                <Link
+                  to="/admin"
+                  className={`block px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
+                    isActive('/admin')
+                      ? 'text-[#8B5CF6] bg-[#8B5CF6]/10'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Shield className="h-4 w-4" />
+                  <span>Admin</span>
+                </Link>
+              )}
+              
               {/* Mobile Auth Section */}
               <div className="pt-4 space-y-2 border-t border-gray-200 mt-4">
                 {user ? (
@@ -336,6 +381,19 @@ const Navbar: React.FC = () => {
                       <User className="h-4 w-4" />
                       <span>Profile</span>
                     </Link>
+                    
+                    {/* Admin Dashboard - Only show for admin users */}
+                    {isAdmin(user) && (
+                      <Link
+                        to="/admin"
+                        className="flex items-center space-x-2 w-full text-left px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Shield className="h-4 w-4" />
+                        <span>Admin Dashboard</span>
+                      </Link>
+                    )}
+                    
                     <button
                       onClick={() => {
                         handleDebugTokens();

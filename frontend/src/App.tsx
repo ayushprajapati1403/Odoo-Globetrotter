@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
 import ToastContainer, { useToast } from './components/Toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -176,13 +177,13 @@ function App() {
             } />
             
             <Route path="/admin" element={
-              <ProtectedRoute>
+              <AdminProtectedRoute>
                 <>
                   <Navbar />
                   <AdminDashboard />
                   <Footer />
                 </>
-              </ProtectedRoute>
+              </AdminProtectedRoute>
             } />
             
             {/* About and Contact - Public */}

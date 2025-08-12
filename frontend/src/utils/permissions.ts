@@ -30,8 +30,12 @@ export const isAdmin = (user: User | null): boolean => {
   // You can implement this by checking a role field in your users table
   
   // Option 2: Check if user email is in admin list
+  // Add admin email addresses here to grant admin privileges
   const adminEmails = [
-    'admin@yourdomain.com',
+    'admin@travelpro.com',
+    'superuser@travelpro.com',
+    'test@example.com',
+    'prajapatiayush1403@gmail.com', // For testing purposes 
     // Add more admin emails as needed
   ];
   
