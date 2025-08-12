@@ -18,6 +18,7 @@ const SignUp: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [homeCity, setHomeCity] = useState('');
+  const [selectedCityCurrency, setSelectedCityCurrency] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cities, setCities] = useState<City[]>([]);
@@ -89,6 +90,7 @@ const SignUp: React.FC = () => {
             email: email,
             name: name.trim(),
             home_city_id: homeCity || null,
+            currency_id: selectedCityCurrency || null,
             active: true
           });
 
@@ -100,10 +102,28 @@ const SignUp: React.FC = () => {
         // Debug tokens after successful sign up
         debugTokens();
         
+        // Create success message with currency info if applicable
+        let successMessage = 'Account created successfully! Please check your email to verify your account before signing in.';
+        if (selectedCityCurrency) {
+          try {
+            const { data: currency } = await supabase
+              .from('currencies')
+              .select('code, symbol')
+              .eq('id', selectedCityCurrency)
+              .single();
+            
+            if (currency) {
+              successMessage += ` Your currency has been automatically set to ${currency.code} (${currency.symbol}).`;
+            }
+          } catch (currencyErr) {
+            console.warn('Could not fetch currency details for success message:', currencyErr);
+          }
+        }
+        
         // Redirect to signin page with success message
         navigate('/signin', { 
           state: { 
-            message: 'Account created successfully! Please check your email to verify your account before signing in.' 
+            message: successMessage
           }
         });
       }
@@ -191,6 +211,13 @@ const SignUp: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Home City (Optional)
               </label>
+              {selectedCityCurrency && (
+                <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-700">
+                    💡 Currency will be automatically set based on your home city
+                  </p>
+                </div>
+              )}
               <div className="relative">
                 <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
                 <input
@@ -199,7 +226,10 @@ const SignUp: React.FC = () => {
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setShowCityDropdown(true);
-                    if (!e.target.value) setHomeCity('');
+                    if (!e.target.value) {
+                      setHomeCity('');
+                      setSelectedCityCurrency(null);
+                    }
                   }}
                   onFocus={() => setShowCityDropdown(true)}
                   className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-[#42eff5] focus:ring-[#42eff5]/50 transition-all duration-300"
@@ -212,6 +242,7 @@ const SignUp: React.FC = () => {
                     onClick={() => {
                       setHomeCity('');
                       setSearchQuery('');
+                      setSelectedCityCurrency(null);
                     }}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     disabled={loading}
@@ -229,10 +260,30 @@ const SignUp: React.FC = () => {
                       <button
                         key={city.id}
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           setHomeCity(city.id);
                           setSearchQuery(`${city.name}, ${city.country}`);
                           setShowCityDropdown(false);
+                          
+                          // Fetch the city's currency_id
+                          try {
+                            const { data: cityData, error: cityError } = await supabase
+                              .from('cities')
+                              .select('currency_id')
+                              .eq('id', city.id)
+                              .single();
+                            
+                            if (!cityError && cityData?.currency_id) {
+                              setSelectedCityCurrency(cityData.currency_id);
+                              console.log(`City ${city.name} has currency_id: ${cityData.currency_id}`);
+                            } else {
+                              setSelectedCityCurrency(null);
+                              console.log(`City ${city.name} has no currency_id set`);
+                            }
+                          } catch (err) {
+                            console.warn('Could not fetch city currency:', err);
+                            setSelectedCityCurrency(null);
+                          }
                         }}
                         className="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0"
                       >
@@ -243,6 +294,23 @@ const SignUp: React.FC = () => {
                   ) : (
                     <div className="px-4 py-3 text-gray-500 text-sm">No cities found</div>
                   )}
+                </div>
+              )}
+
+              {/* Selected City Info */}
+              {selectedCity && selectedCityCurrency && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="h-4 w-4 text-green-600" />
+                    <div className="text-sm">
+                      <p className="font-medium text-green-800">
+                        {selectedCity.name}, {selectedCity.country}
+                      </p>
+                      <p className="text-green-700">
+                        Currency will be automatically set for this city
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

@@ -9,11 +9,19 @@ interface City {
   country: string;
 }
 
+interface Currency {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+}
+
 interface UserProfile {
   id: string;
   email: string;
   name: string | null;
   home_city_id: string | null;
+  currency_id: string | null;
   preferences: any;
   photo: string | null;
   created_at: string;
@@ -24,6 +32,7 @@ const UserProfile: React.FC = () => {
   const { user, debugTokens } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [cities, setCities] = useState<City[]>([]);
+  const [userCurrency, setUserCurrency] = useState<Currency | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,7 +80,7 @@ const UserProfile: React.FC = () => {
         // Fetch user profile
         const { data: profileData, error: profileError } = await supabase
           .from('users')
-          .select('*')
+          .select('id, email, name, home_city_id, currency_id, preferences, photo, created_at, updated_at')
           .eq('id', user.id)
           .single();
 
@@ -89,6 +98,19 @@ const UserProfile: React.FC = () => {
           newPassword: '',
           confirmPassword: ''
         });
+
+        // Fetch user's currency if they have one
+        if (profileData.currency_id) {
+          const { data: currencyData } = await supabase
+            .from('currencies')
+            .select('id, code, name, symbol')
+            .eq('id', profileData.currency_id)
+            .single();
+          
+          if (currencyData) {
+            setUserCurrency(currencyData);
+          }
+        }
 
         // Fetch cities
         const { data: citiesData } = await supabase
@@ -355,6 +377,36 @@ const UserProfile: React.FC = () => {
         home_city_id: formData.homeCity || null
       };
 
+      // Step 1: If home city is being updated, get the city's currency_id
+      if (formData.homeCity && formData.homeCity !== profile.home_city_id) {
+        console.log('Home city changed, updating currency...');
+        
+        try {
+          // Get city details including currency_id
+          const { data: cityData, error: cityError } = await supabase
+            .from('cities')
+            .select('id, name, country, currency_id')
+            .eq('id', formData.homeCity)
+            .single();
+
+          if (cityError || !cityData) {
+            console.warn('Could not fetch city details for currency update:', cityError);
+          } else {
+            console.log(`Selected city: ${cityData.name}, currency_id: ${cityData.currency_id}`);
+            
+            // Update user's currency_id based on city's currency_id
+            if (cityData.currency_id) {
+              updates.currency_id = cityData.currency_id;
+              console.log(`Updated currency_id to: ${cityData.currency_id} for city: ${cityData.name}`);
+            } else {
+              console.log(`City ${cityData.name} has no currency_id set`);
+            }
+          }
+        } catch (cityErr) {
+          console.warn('Error fetching city currency details:', cityErr);
+        }
+      }
+
       // Update user profile in database
       console.log('Updating database with:', updates);
       console.log('User ID:', user.id);
@@ -382,6 +434,7 @@ const UserProfile: React.FC = () => {
             email: user.email,
             name: updates.name,
             home_city_id: updates.home_city_id,
+            currency_id: updates.currency_id,
             active: true
           })
           .select()
@@ -389,7 +442,7 @@ const UserProfile: React.FC = () => {
         
         dbData = insertResult.data;
         updateError = insertResult.error;
-    } else {
+      } else {
         dbData = updateResult.data;
         updateError = null;
       }
@@ -413,8 +466,45 @@ const UserProfile: React.FC = () => {
         ...updates
       } : null);
 
+      // Update currency state if currency_id changed
+      if (updates.currency_id && updates.currency_id !== profile.currency_id) {
+        try {
+          const { data: newCurrency } = await supabase
+            .from('currencies')
+            .select('id, code, name, symbol')
+            .eq('id', updates.currency_id)
+            .single();
+          
+          if (newCurrency) {
+            setUserCurrency(newCurrency);
+          }
+        } catch (currencyErr) {
+          console.warn('Could not fetch new currency details:', currencyErr);
+        }
+      }
+
       setEditing(false);
-      setSuccess('Profile updated successfully!');
+      
+      // Show success message with currency update info if applicable
+      let successMessage = 'Profile updated successfully!';
+      if (updates.currency_id && updates.currency_id !== profile.currency_id) {
+        try {
+          // Get currency details for display
+          const { data: currency } = await supabase
+            .from('currencies')
+            .select('code, symbol')
+            .eq('id', updates.currency_id)
+            .single();
+            
+          if (currency) {
+            successMessage = `Profile updated successfully! Currency updated to ${currency.code} (${currency.symbol})`;
+          }
+        } catch (currencyErr) {
+          console.warn('Could not fetch currency details for display:', currencyErr);
+        }
+      }
+      
+      setSuccess(successMessage);
 
       // Clear success message after 5 seconds
       setTimeout(() => setSuccess(null), 5000);
@@ -772,6 +862,31 @@ const UserProfile: React.FC = () => {
                   </p>
           )}
         </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Currency
+                </label>
+                {editing ? (
+                  <p className="text-gray-500 text-sm italic">
+                    Currency will be automatically updated based on your home city selection
+                  </p>
+                ) : (
+                  <p className="text-gray-900">
+                    {userCurrency ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {userCurrency.code} ({userCurrency.symbol}) - {userCurrency.name}
+                      </span>
+                    ) : profile.currency_id ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        Loading...
+                      </span>
+                    ) : (
+                      'Not set'
+                    )}
+                  </p>
+                )}
+              </div>
               </div>
                     </div>
                     
