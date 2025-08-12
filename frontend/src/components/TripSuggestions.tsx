@@ -9,7 +9,8 @@ import {
   Star,
   TrendingUp,
   Users,
-  Globe
+  Globe,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -211,7 +212,14 @@ const TripSuggestions: React.FC<TripSuggestionsProps> = ({ onTripCloned }) => {
                       <span>Expert Curated</span>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-2">
+                    {trip.fixed_cost && (
+                      <div className="bg-green-100 px-2 py-1 rounded-full">
+                        <span className="text-xs text-green-700 font-medium">
+                          ${trip.fixed_cost.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                     <div className="bg-[#8B5CF6]/10 px-2 py-1 rounded-full">
                       <span className="text-xs text-[#8B5CF6] font-medium">Admin</span>
                     </div>
@@ -229,6 +237,13 @@ const TripSuggestions: React.FC<TripSuggestionsProps> = ({ onTripCloned }) => {
                     <div className="flex items-center space-x-2 text-xs text-gray-600">
                       <Clock className="h-3 w-3" />
                       <span>{duration} days</span>
+                    </div>
+                  )}
+
+                  {trip.fixed_cost && (
+                    <div className="flex items-center space-x-2 text-xs text-green-600 font-medium">
+                      <DollarSign className="h-3 w-3" />
+                      <span>${trip.fixed_cost.toFixed(2)}</span>
                     </div>
                   )}
 

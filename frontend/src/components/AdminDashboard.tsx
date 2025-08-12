@@ -22,7 +22,8 @@ import {
   Hotel,
   DollarSign,
   Database,
-  RefreshCw
+  RefreshCw,
+  Plus
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -47,6 +48,7 @@ interface TripData {
   is_public: boolean;
   total_estimated_cost: number | null;
   budget: number | null;
+  fixed_cost: number | null;
   trip_type: string;
   created_at: string;
   deleted: boolean;
@@ -136,7 +138,22 @@ const AdminDashboard: React.FC = () => {
   const [tripSearchQuery, setTripSearchQuery] = useState('');
   const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [tripVisibilityFilter, setTripVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
+  const [tripTypeFilter, setTripTypeFilter] = useState<'all' | 'custom' | 'admin_defined'>('all');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showCreateTripModal, setShowCreateTripModal] = useState(false);
+
+  // Admin Trip Creation Form State
+  const [adminTripForm, setAdminTripForm] = useState({
+    name: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+    is_public: true,
+    fixed_cost: ''
+  });
+
+  const [adminTripErrors, setAdminTripErrors] = useState<Record<string, string>>({});
+  const [isCreatingTrip, setIsCreatingTrip] = useState(false);
 
   // Fetch all data from Supabase
   const fetchDashboardData = async () => {
@@ -174,6 +191,7 @@ const AdminDashboard: React.FC = () => {
           is_public,
           total_estimated_cost,
           budget,
+          fixed_cost,
           trip_type,
           created_at,
           deleted
@@ -248,6 +266,7 @@ const AdminDashboard: React.FC = () => {
       // Enrich data with city names
       const enrichedTrips = tripsData.map(trip => ({
         ...trip,
+        fixed_cost: trip.fixed_cost || null,
         user_email: usersData.find(u => u.id === trip.user_id)?.email || 'Unknown'
       }));
 
@@ -351,9 +370,13 @@ const AdminDashboard: React.FC = () => {
         (tripVisibilityFilter === 'public' && trip.is_public) ||
         (tripVisibilityFilter === 'private' && !trip.is_public);
       
-      return matchesSearch && matchesVisibility;
+      const matchesType = tripTypeFilter === 'all' || 
+        (tripTypeFilter === 'custom' && trip.trip_type === 'custom') ||
+        (tripTypeFilter === 'admin_defined' && trip.trip_type === 'admin_defined');
+
+      return matchesSearch && matchesVisibility && matchesType;
     });
-  }, [trips, tripSearchQuery, tripVisibilityFilter]);
+  }, [trips, tripSearchQuery, tripVisibilityFilter, tripTypeFilter]);
 
   // Category distribution for activities
   const activityCategoryDistribution = useMemo(() => {
@@ -439,6 +462,116 @@ const AdminDashboard: React.FC = () => {
     // TODO: Implement actual export functionality
   };
 
+  // Admin Trip Creation Functions
+  const handleAdminTripInputChange = (field: string, value: string | boolean | number) => {
+    setAdminTripForm(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error when user starts typing
+    if (adminTripErrors[field]) {
+      setAdminTripErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateAdminTripForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!adminTripForm.name.trim()) {
+      newErrors.name = 'Please enter a trip name.';
+    } else if (adminTripForm.name.trim().length < 3) {
+      newErrors.name = 'Trip name must be at least 3 characters.';
+    }
+
+    if (!adminTripForm.start_date) {
+      newErrors.start_date = 'Please select a start date.';
+    }
+    if (!adminTripForm.end_date) {
+      newErrors.end_date = 'Please select an end date.';
+    }
+
+    if (adminTripForm.start_date && adminTripForm.end_date) {
+      const startDate = new Date(adminTripForm.start_date);
+      const endDate = new Date(adminTripForm.end_date);
+      
+      if (endDate < startDate) {
+        newErrors.dateRange = 'End date must be after start date.';
+      }
+    }
+
+
+
+    if (adminTripForm.fixed_cost && parseFloat(adminTripForm.fixed_cost) <= 0) {
+      newErrors.fixed_cost = 'Fixed cost must be a positive number.';
+    }
+
+    setAdminTripErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleCreateAdminTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateAdminTripForm()) {
+      return;
+    }
+
+    setIsCreatingTrip(true);
+
+    try {
+      const { data: trip, error: tripError } = await supabase
+        .from('trips')
+        .insert({
+          name: adminTripForm.name,
+          description: adminTripForm.description,
+          start_date: adminTripForm.start_date,
+          end_date: adminTripForm.end_date,
+          is_public: adminTripForm.is_public,
+          user_id: null, // Admin-created trips don't have a specific user
+          trip_type: 'admin_defined',
+          fixed_cost: adminTripForm.fixed_cost ? parseFloat(adminTripForm.fixed_cost) : null
+        })
+        .select()
+        .single();
+
+      if (tripError) {
+        console.error('Admin trip creation error:', tripError);
+        throw tripError;
+      }
+
+      // Reset form and close modal
+      setAdminTripForm({
+        name: '',
+        description: '',
+        start_date: '',
+        end_date: '',
+        is_public: true,
+        fixed_cost: ''
+      });
+      setShowCreateTripModal(false);
+      
+      // Refresh dashboard data
+      fetchDashboardData();
+      
+      alert('Admin trip created successfully!');
+    } catch (error) {
+      console.error('Error creating admin trip:', error);
+      alert('Failed to create admin trip. Please try again.');
+    } finally {
+      setIsCreatingTrip(false);
+    }
+  };
+
+  const resetAdminTripForm = () => {
+    setAdminTripForm({
+      name: '',
+      description: '',
+      start_date: '',
+      end_date: '',
+      is_public: true,
+      fixed_cost: ''
+    });
+    setAdminTripErrors({});
+  };
+
   const categoryColors: Record<string, string> = {
     'Sightseeing': 'bg-blue-500',
     'Culture': 'bg-purple-500',
@@ -491,13 +624,22 @@ const AdminDashboard: React.FC = () => {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
             <p className="text-gray-600 text-lg">Real-time platform analytics and management</p>
           </div>
-          <button
-            onClick={fetchDashboardData}
-            className="flex items-center space-x-2 px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#8B5CF6]/90 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>Refresh Data</span>
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowCreateTripModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Admin Trip</span>
+            </button>
+            <button
+              onClick={fetchDashboardData}
+              className="flex items-center space-x-2 px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#8B5CF6]/90 transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Refresh Data</span>
+            </button>
+          </div>
         </div>
 
         {/* Top Metrics */}
@@ -764,6 +906,15 @@ const AdminDashboard: React.FC = () => {
               <option value="public">Public Only</option>
               <option value="private">Private Only</option>
             </select>
+            <select
+              value={tripTypeFilter}
+              onChange={(e) => setTripTypeFilter(e.target.value as 'all' | 'custom' | 'admin_defined')}
+              className="px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50"
+            >
+              <option value="all">All Types</option>
+              <option value="custom">Custom Trips</option>
+              <option value="admin_defined">Admin Defined</option>
+            </select>
           </div>
 
           {/* Trips Table */}
@@ -776,6 +927,7 @@ const AdminDashboard: React.FC = () => {
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Type</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Visibility</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Budget</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Fixed Cost</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900">Created</th>
                 </tr>
               </thead>
@@ -800,6 +952,9 @@ const AdminDashboard: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-gray-600">
                       {trip.budget ? `$${trip.budget.toFixed(2)}` : '-'}
+                    </td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {trip.fixed_cost ? `$${trip.fixed_cost.toFixed(2)}` : '-'}
                     </td>
                     <td className="py-3 px-4 text-gray-600">{formatDate(trip.created_at)}</td>
                   </tr>
@@ -862,6 +1017,141 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Admin Trip Modal */}
+        {showCreateTripModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Create New Admin Trip</h3>
+                <button
+                  onClick={() => setShowCreateTripModal(false)}
+                  className="text-gray-500 hover:text-gray-900"
+                >
+                  ×
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateAdminTrip} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Trip Name
+                  </label>
+                  <input
+                    type="text"
+                    value={adminTripForm.name}
+                    onChange={(e) => handleAdminTripInputChange('name', e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50"
+                    placeholder="e.g., My Summer Vacation"
+                  />
+                  {adminTripErrors.name && (
+                    <p className="text-red-500 text-xs mt-1">{adminTripErrors.name}</p>
+                  )}
+                </div>
+
+                                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Description (Optional)
+                   </label>
+                   <textarea
+                     value={adminTripForm.description}
+                     onChange={(e) => handleAdminTripInputChange('description', e.target.value)}
+                     rows={3}
+                     className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50"
+                     placeholder="Brief description of the trip"
+                   />
+                 </div>
+
+                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                   <p className="text-sm text-blue-800">
+                     <strong>Note:</strong> This trip will be created as an "Admin Defined" trip type. 
+                     The fixed cost will be displayed to users as the trip cost in trip suggestions.
+                   </p>
+                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={adminTripForm.start_date}
+                      onChange={(e) => handleAdminTripInputChange('start_date', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50"
+                    />
+                    {adminTripErrors.start_date && (
+                      <p className="text-red-500 text-xs mt-1">{adminTripErrors.start_date}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={adminTripForm.end_date}
+                      onChange={(e) => handleAdminTripInputChange('end_date', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50"
+                    />
+                    {adminTripErrors.end_date && (
+                      <p className="text-red-500 text-xs mt-1">{adminTripErrors.end_date}</p>
+                    )}
+                  </div>
+                </div>
+                {adminTripErrors.dateRange && (
+                  <p className="text-red-500 text-xs mt-1">{adminTripErrors.dateRange}</p>
+                )}
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="is_public"
+                    checked={adminTripForm.is_public}
+                    onChange={(e) => handleAdminTripInputChange('is_public', e.target.checked)}
+                    className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_public" className="text-sm text-gray-700">
+                    Make this trip public (visible to all users)
+                  </label>
+                </div>
+
+                                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Fixed Cost (Optional)
+                   </label>
+                   <input
+                     type="number"
+                     value={adminTripForm.fixed_cost}
+                     onChange={(e) => handleAdminTripInputChange('fixed_cost', e.target.value)}
+                     className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-[#8B5CF6] focus:ring-[#8B5CF6]/50"
+                     placeholder="e.g., 500"
+                   />
+                   {adminTripErrors.fixed_cost && (
+                     <p className="text-red-500 text-xs mt-1">{adminTripErrors.fixed_cost}</p>
+                   )}
+                 </div>
+
+                <div className="flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateTripModal(false)}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingTrip}
+                    className="px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#8B5CF6]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isCreatingTrip ? 'Creating...' : 'Create Admin Trip'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

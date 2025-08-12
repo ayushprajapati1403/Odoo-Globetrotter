@@ -78,6 +78,7 @@ export interface AdminTrip {
   cover_photo_url: string;
   currency: string;
   total_estimated_cost: number;
+  fixed_cost: number | null;
   metadata: any;
   created_at: string;
   updated_at: string;
