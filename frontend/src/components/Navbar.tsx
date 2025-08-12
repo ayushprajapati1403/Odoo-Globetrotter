@@ -51,33 +51,7 @@ const Navbar: React.FC = () => {
     setIsUserMenuOpen(false);
   };
 
-  // Test storage bucket access
-  const testStorageAccess = async () => {
-    try {
-      console.log('Testing storage bucket access...');
-      
-      // Test if profile bucket exists and is accessible
-      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-      if (bucketError) {
-        console.error('Error listing buckets:', bucketError);
-        return false;
-      }
-      
-      const profileBucket = buckets?.find(b => b.name === 'profile');
-      if (!profileBucket) {
-        console.error('Profile bucket not found. Available buckets:', buckets?.map(b => b.name));
-        return false;
-      }
-      
-      console.log('Profile bucket found:', profileBucket);
-      console.log('Bucket public status:', profileBucket.public);
-      
-      return true;
-    } catch (error) {
-      console.error('Error testing storage access:', error);
-      return false;
-    }
-  };
+
 
   // Fetch user's profile photo from storage
   const fetchProfilePhoto = async () => {
@@ -86,7 +60,7 @@ const Navbar: React.FC = () => {
     try {
       console.log('Fetching profile photo for user:', user.id);
       
-      // First check if user has a photo in the users table
+      // Get user's photo from the users table
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('photo')
@@ -101,36 +75,12 @@ const Navbar: React.FC = () => {
       console.log('User photo data:', userData);
 
       if (userData?.photo) {
-        console.log('Photo path found:', userData.photo);
+        console.log('Photo URL found:', userData.photo);
         
-        // Check if the file exists in storage
-        const { data: fileList, error: listError } = await supabase.storage
-          .from('profile')
-          .list('', {
-            limit: 100,
-            offset: 0,
-            search: userData.photo
-          });
-
-        if (listError) {
-          console.warn('Error listing files in profile bucket:', listError);
-        } else {
-          console.log('Files in profile bucket:', fileList);
-        }
-
-        // Get the public URL for the photo from the 'profile' bucket
-        const { data: photoData } = supabase.storage
-          .from('profile')
-          .getPublicUrl(userData.photo);
-
-        console.log('Photo data:', photoData);
-
-        if (photoData?.publicUrl) {
-          console.log('Setting profile photo URL:', photoData.publicUrl);
-          setProfilePhotoUrl(photoData.publicUrl);
-        } else {
-          console.warn('No public URL found for photo');
-        }
+        // The photo field already contains the full public URL, just use it directly
+        // This is the same approach used in UserProfile component
+        setProfilePhotoUrl(userData.photo);
+        console.log('Setting profile photo URL:', userData.photo);
       } else {
         console.log('No photo found in user data');
       }
@@ -142,17 +92,18 @@ const Navbar: React.FC = () => {
   // Fetch profile photo when user changes
   useEffect(() => {
     if (user) {
-      testStorageAccess().then(hasAccess => {
-        if (hasAccess) {
-          fetchProfilePhoto();
-        } else {
-          console.error('Storage access test failed - cannot fetch profile photo');
-        }
-      });
+      console.log('User authenticated, fetching profile photo...');
+      fetchProfilePhoto();
     } else {
+      console.log('No user, clearing profile photo');
       setProfilePhotoUrl(null);
     }
   }, [user]);
+
+  // Debug: Log profilePhotoUrl changes
+  useEffect(() => {
+    console.log('profilePhotoUrl changed:', profilePhotoUrl);
+  }, [profilePhotoUrl]);
 
   return (
     <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
@@ -281,17 +232,24 @@ const Navbar: React.FC = () => {
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300"
                 >
-                  {/* Profile Picture */}
+                                    {/* Profile Picture */}
                   {profilePhotoUrl ? (
-                    <img
-                      src={profilePhotoUrl}
-                      alt="Profile"
-                      className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
-                      onError={() => {
-                        console.warn('Profile image failed to load, falling back to initials');
-                        setProfilePhotoUrl(null);
-                      }}
-                    />
+                    <>
+                      <img
+                        src={profilePhotoUrl}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
+                        onLoad={() => {
+                          console.log('Profile image loaded successfully:', profilePhotoUrl);
+                        }}
+                        onError={(e) => {
+                          console.error('Failed to load profile image:', profilePhotoUrl);
+                          console.error('Image error details:', e);
+                          setProfilePhotoUrl(null);
+                        }}
+                        crossOrigin="anonymous"
+                      />
+                    </>
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#8B5CF6] to-purple-500 flex items-center justify-center text-white text-sm font-semibold">
                       {user.user_metadata?.full_name ? 
@@ -496,15 +454,22 @@ const Navbar: React.FC = () => {
                       <div className="flex items-center space-x-3">
                         {/* Profile Picture */}
                         {profilePhotoUrl ? (
-                          <img
-                            src={profilePhotoUrl}
-                            alt="Profile"
-                            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
-                            onError={() => {
-                              console.warn('Profile image failed to load, falling back to initials');
-                              setProfilePhotoUrl(null);
-                            }}
-                          />
+                          <>
+                            <img
+                              src={profilePhotoUrl}
+                              alt="Profile"
+                              className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                              onLoad={() => {
+                                console.log('Profile image loaded successfully:', profilePhotoUrl);
+                              }}
+                              onError={(e) => {
+                                console.error('Failed to load profile image:', profilePhotoUrl);
+                                console.error('Image error details:', e);
+                                setProfilePhotoUrl(null);
+                              }}
+                              crossOrigin="anonymous"
+                            />
+                          </>
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B5CF6] to-purple-500 flex items-center justify-center text-white text-sm font-semibold">
                             {user.user_metadata?.full_name ? 
